@@ -4,7 +4,7 @@ const path = require('path');
 function createWindow() {
   const win = new BrowserWindow({
     icon: path.join(__dirname, 'build/icon.ico'),
-    title: 'ChatGPT',                    // ← Título que vai aparecer imediatamente
+    title: 'ChatGPT',
     fullscreen: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -13,12 +13,10 @@ function createWindow() {
     }
   });
 
-  win.loadFile('index.html');
+  win.loadFile('login.html');
 
-  // Remove o menu superior
   Menu.setApplicationMenu(null);
 
-  // Atalho para DevTools (Ctrl + Shift + I)
   win.webContents.on('before-input-event', (event, input) => {
     if (input.control && input.shift && input.key.toLowerCase() === 'i') {
       win.webContents.toggleDevTools();
@@ -26,33 +24,30 @@ function createWindow() {
     }
   });
 
-  // Força o título assim que a página carregar (evita flash do nome do pacote)
   win.webContents.once('did-finish-load', () => {
-    win.setTitle('ChatGPT');   // ou o nome que você quiser
+    win.setTitle('ChatGPT');
   });
 
-  // === SOLUÇÃO PARA O ÍCONE NAS JANELAS ABERTAS PELO SITE ===
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    return {
-      action: 'allow',
-      overrideBrowserWindowOptions: {
-        icon: path.join(__dirname, 'build/icon.ico'),
-        title: 'ChatGPT',                    // também define título nas janelas secundárias
-        fullscreen: false,
+  win.webContents.setWindowOpenHandler(() => ({
+    action: 'allow',
+    overrideBrowserWindowOptions: {
+      icon: path.join(__dirname, 'build/icon.ico'),
+      title: 'ChatGPT',
+      fullscreen: false,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
       }
-    };
-  });
+    }
+  }));
 }
-
-// ====================== APLICAÇÃO PRINCIPAL ======================
 
 app.whenReady().then(() => {
   createWindow();
 
-  // Backup: força o ícone e título em TODAS as janelas criadas
-  app.on('browser-window-created', (event, newWindow) => {
+  app.on('browser-window-created', (_event, newWindow) => {
     const iconPath = path.join(__dirname, 'build/icon.ico');
-    
     if (newWindow.setIcon) newWindow.setIcon(iconPath);
     if (newWindow.setTitle) newWindow.setTitle('ChatGPT');
   });

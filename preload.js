@@ -1,6 +1,14 @@
 const { contextBridge } = require('electron');
 
+const authConfig = {
+  supabaseUrl: 'https://yeuojewjvyfxcxqzxnpc.supabase.co',
+  anonKey: 'sb_publishable_K5uvJz80GZoBiZ6GqxpeXw__XCwKAsU',
+  otpLength: 6,
+  emailMaxLength: 254,
+  passwordMaxLength: 72
+};
+
 contextBridge.exposeInMainWorld('electronAPI', {
-  // You can add safe APIs here later (e.g. ipcRenderer)
-  version: process.versions.electron
+  version: process.versions.electron,
+  authConfig
 });
