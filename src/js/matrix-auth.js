@@ -2,8 +2,8 @@
   const AUTH_PAGE_EMAIL = 'log-in-or-create-account.html';
   const AUTH_PAGE_PASSWORD = 'create-account-password.html';
   const AUTH_PAGE_VERIFY = 'email-verification.html';
-  const DEFAULT_PROJECT_URL = 'https://yeuojewjvyfxcxqzxnpc.supabase.co';
-  const DEFAULT_ANON_KEY = 'sb_publishable_K5uvJz80GZoBiZ6GqxpeXw__XCwKAsU';
+  const DEFAULT_PROJECT_URL = 'https://xkkrbnxqtrfjzbasvocz.supabase.co';
+  const DEFAULT_ANON_KEY = 'sb_publishable_MhEwBmkNjTFAMSZniI5XzQ_45tNsIYX';
 
   const getConfig = () => {
     const bridgeConfig = window.electronAPI && window.electronAPI.authConfig ? window.electronAPI.authConfig : {};
@@ -11,7 +11,7 @@
     return {
       supabaseUrl: bridgeConfig.supabaseUrl || inlineConfig.supabaseUrl || DEFAULT_PROJECT_URL,
       anonKey: bridgeConfig.anonKey || bridgeConfig.supabaseKey || inlineConfig.anonKey || inlineConfig.supabaseKey || DEFAULT_ANON_KEY,
-      otpLength: bridgeConfig.otpLength || inlineConfig.otpLength || 6,
+      otpLength: bridgeConfig.otpLength || inlineConfig.otpLength || 8,
       emailMaxLength: bridgeConfig.emailMaxLength || inlineConfig.emailMaxLength || 254,
       passwordMaxLength: bridgeConfig.passwordMaxLength || inlineConfig.passwordMaxLength || 72
     };
@@ -186,7 +186,9 @@
       passwordInput.value = '';
       passwordInput.maxLength = config.passwordMaxLength;
       passwordInput.minLength = 8;
-      passwordInput.autocomplete = 'current-password';
+      passwordInput.autocomplete = matrix && matrix.getModeFromLocation && matrix.getModeFromLocation() === 'signup'
+        ? 'new-password'
+        : 'current-password';
     }
 
     const codeInput = document.querySelector('input[name="code"]');
@@ -223,8 +225,22 @@
   const syncPendingEmailIntoVerificationPage = () => {
     const pending = matrix && matrix.getPendingAuth ? matrix.getPendingAuth() : null;
     const email = pending && pending.email ? pending.email : '';
+    const mode = pending && pending.mode === 'signup' ? 'signup' : 'login';
     const emailStrong = document.querySelector('._emailAddress_jwi2b_1');
+    const title = document.querySelector('h1 ._root_xeddl_1');
+    const subtitle = document.querySelector('._subTitle_1qx9q_115 span');
+    const resendButton = document.querySelector('button[value="resend"]');
+    const verifyButton = document.querySelector('button[value="validate"]');
+
     if (emailStrong) emailStrong.textContent = email || 'your email address';
+    if (title) {
+      title.textContent = mode === 'signup' ? 'Enter verification code' : 'Verify your sign in';
+    }
+    if (subtitle) {
+      subtitle.innerHTML = `Enter the verification code we just sent to <strong class="_emailAddress_jwi2b_1">${email || 'your email address'}</strong>`;
+    }
+    if (resendButton) resendButton.textContent = 'Resend code';
+    if (verifyButton) verifyButton.textContent = mode === 'signup' ? 'Continue' : 'Sign in';
   };
 
   const goToIndex = () => {
@@ -366,7 +382,7 @@
 
     if (!verifyForm || !verifyButton || !codeInput) return;
     if (!pending || !pending.email) {
-      window.location.replace('log-in-or-create-account.html?mode=signup');
+      window.location.replace('log-in-or-create-account.html?mode=' + matrix.getModeFromLocation());
       return;
     }
 
@@ -383,13 +399,21 @@
 
       try {
         setBusy(verifyButton, true, 'Verifying...');
-        const { error } = await client.auth.verifyOtp({
+        const { data, error } = await client.auth.verifyOtp({
           email: pending.email,
           token,
           type: 'email'
         });
         if (error) throw error;
-        window.location.href = 'create-account-password.html?mode=signup';
+
+        if (pending.mode === 'signup') {
+          window.location.href = 'create-account-password.html?mode=signup';
+          return;
+        }
+
+        matrix.startAuthenticatedSession(data && data.user ? data.user : { email: pending.email });
+        matrix.clearPendingAuth();
+        goToIndex();
       } catch (error) {
         showMessage(error && error.message ? error.message : 'Unable to verify the code.');
       } finally {
@@ -408,11 +432,11 @@
           const { error } = await client.auth.signInWithOtp({
             email: pending.email,
             options: {
-              shouldCreateUser: true
+              shouldCreateUser: pending.mode === 'signup'
             }
           });
           if (error) throw error;
-          showMessage('A new code was sent to your email.', 'success');
+          showMessage('A new verification code was sent to your email.', 'success');
         } catch (error) {
           showMessage(error && error.message ? error.message : 'Unable to resend the code.');
         } finally {
