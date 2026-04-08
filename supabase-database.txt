@@ -1,7 +1,0 @@
-https://supabase.com/dashboard/project/mcvcgtyetymwpbvwmzbn/auth/templates/confirm-sign-up
-https://supabase.com/dashboard/project/?/auth/templates/confirm-sign-up
-
-Your verification code
-<h2>Your verification code</h2>
-
-<p>Enter the code: {{ .Token }}</p>
