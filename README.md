@@ -1,1 +1,1 @@
-# ChatGPT v.1.0.0 (Interface Electron)
+# ChatGPT v.1.0.0 (Interface Electron) + Ollama + Claude Code + MCP + Automation
