@@ -1,4 +1,4 @@
-# ChatGPT - Interface Electron v1.0.0 + Google Account
+# ChatGPT - Interface Electron v1.0.0 + Project 1
 
 <img width="1366" height="727" alt="image" src="https://github.com/user-attachments/assets/ca496e97-de02-485b-b281-33b85c9826d9" />
 
