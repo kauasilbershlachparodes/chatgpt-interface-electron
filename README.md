@@ -1,1 +1,1 @@
-# ChatGPT v.1.0.0 (Interface Electron) + Ollama + Claude Code + Personalized MCP/Agent/Scapring + Automation
+# ChatGPT v.1.0.0 (Interface Electron) + Ollama + Claude Code + Personalized MCP/Agent/Scapring + Automation + Base Open Source to make your ia agent 
