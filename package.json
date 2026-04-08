@@ -1,0 +1,12 @@
+{
+  "name": "electron-sample",
+  "version": "1.0.0",
+  "description": "Minimal Electron app",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "latest"
+  }
+}
