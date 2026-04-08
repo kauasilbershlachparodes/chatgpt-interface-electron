@@ -290,17 +290,13 @@
       }
     });
 
-    let initialExpanded = true;
-    try {
-      const savedState = window.localStorage.getItem(SIDEBAR_STORAGE_KEY);
-      if (savedState === 'collapsed') {
-        initialExpanded = false;
-      }
-    } catch (error) {
-      // ignore storage failures
-    }
+    const isInitiallyCollapsedInMarkup = (
+      sidebar.style.width === 'var(--sidebar-rail-width)' ||
+      sidebar.dataset.sidebarState === 'collapsed' ||
+      closeButton.getAttribute('aria-expanded') === 'false'
+    );
 
-    desktopExpanded = initialExpanded;
+    desktopExpanded = !isInitiallyCollapsedInMarkup;
     mobileOpen = false;
     syncResponsiveState();
 
@@ -453,12 +449,6 @@
       menuItems().forEach((item) => {
         item.style.touchAction = 'manipulation';
       });
-      window.requestAnimationFrame(() => {
-        if (document.activeElement === helpTrigger) {
-          return;
-        }
-        menu.focus({ preventScroll: true });
-      });
     };
 
     const toggleMenu = () => {
@@ -484,6 +474,9 @@
         event.preventDefault();
         if (!isOpen) {
           openMenu();
+          window.requestAnimationFrame(() => {
+            menuItems()[0]?.focus({ preventScroll: true });
+          });
         } else {
           menuItems()[0]?.focus({ preventScroll: true });
         }
