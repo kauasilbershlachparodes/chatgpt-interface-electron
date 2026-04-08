@@ -1,1 +1,3 @@
-# ChatGPT v.1.0.0 (Interface Electron) + Ollama + Claude Code + Personalized MCP/Agent/Scapring + Automation + Base Open Source to make your ia agent 
+# ChatGPT
+
+<img width="1366" height="677" alt="image" src="https://github.com/user-attachments/assets/cd763eb5-3132-498d-b262-ddb40c9ff77e" />
