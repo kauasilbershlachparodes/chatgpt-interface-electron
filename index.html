@@ -1258,6 +1258,25 @@
                   >
                     <div class="flex items-center gap-2">
                       <button
+                        type="button"
+                        class="touch:h-10 touch:w-10 inline-flex md:hidden h-9 w-9 items-center justify-center rounded-md focus:outline-hidden hover:text-token-text-primary rounded-md focus:ring-2 focus:ring-white focus:ring-inset active:opacity-50"
+                        data-testid="open-sidebar-button"
+                        aria-expanded="false"
+                        aria-controls="stage-slideover-sidebar"
+                      >
+                        <span class="sr-only">Open sidebar</span>
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="20"
+                          height="20"
+                          aria-hidden="true"
+                          data-rtl-flip=""
+                          class="text-token-text-secondary icon-lg mx-2"
+                        >
+                          <use href="#38e54b" fill="currentColor"></use>
+                        </svg>
+                      </button>
+                      <button
                         aria-label="Model selector"
                         data-testid="model-switcher-dropdown-button"
                         type="button"
