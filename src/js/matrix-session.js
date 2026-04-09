@@ -130,7 +130,7 @@
   window.MatrixSession = {
     AUTH_MAX_PASSWORD_LENGTH: 72,
     AUTH_MAX_EMAIL_LENGTH: 254,
-    AUTH_OTP_LENGTH: 8,
+    AUTH_OTP_LENGTH: 6,
     getModeFromLocation,
     setPendingAuth,
     getPendingAuth,
