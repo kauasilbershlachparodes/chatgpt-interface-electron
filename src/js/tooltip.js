@@ -5,6 +5,7 @@
   const VIEWPORT_PADDING = 8;
   const POINTER_FOCUS_SUPPRESSION_MS = 350;
   const INTERACTIVE_CLOSE_DELAY = 120;
+  const SEARCH_CHATS_CARD_Y_OFFSET = 16;
   const HIDDEN_TOOLTIP_STYLE = 'position: absolute; border: 0px; width: 1px; height: 1px; padding: 0px; margin: -1px; overflow: hidden; clip: rect(0px, 0px, 0px, 0px); white-space: nowrap; overflow-wrap: normal;';
 
   const findSidebarItemByLabel = (label) => {
@@ -199,6 +200,9 @@
     wrapper.style.top = '0px';
     wrapper.style.transform = 'translate(0px, 0px)';
     wrapper.style.minWidth = 'max-content';
+    wrapper.style.width = '0px';
+    wrapper.style.height = '0px';
+    wrapper.style.overflow = 'visible';
     wrapper.style.zIndex = '50';
     wrapper.style.pointerEvents = 'none';
     wrapper.style.setProperty('--radix-popper-transform-origin', side === 'right' && align === 'start' ? '0px 0px' : side === 'right' ? '0px 50%' : '50% 0px');
@@ -210,11 +214,35 @@
     wrapper.innerHTML = createTooltipInner(type, side, align, tooltipId);
     document.body.appendChild(wrapper);
 
+    const surface = wrapper.firstElementChild;
+    const dialog = wrapper.querySelector('[role="dialog"]');
+    const dialogFrame = wrapper.querySelector('[role="dialog"] > div');
+    const interactiveSurface = wrapper.querySelector('.popover');
+
+    if (surface instanceof HTMLElement) {
+      surface.style.width = 'max-content';
+      surface.style.height = 'auto';
+    }
+
+    if (dialog instanceof HTMLElement) {
+      dialog.style.display = 'inline-block';
+      dialog.style.width = 'max-content';
+      dialog.style.height = 'auto';
+    }
+
+    if (dialogFrame instanceof HTMLElement) {
+      dialogFrame.style.display = 'inline-block';
+      dialogFrame.style.width = 'max-content';
+      dialogFrame.style.height = 'auto';
+    }
+
     return {
       wrapper,
-      surface: wrapper.firstElementChild,
+      surface,
       srOnly: wrapper.querySelector('[role="tooltip"]'),
-      dialog: wrapper.querySelector('[role="dialog"]'),
+      dialog,
+      dialogFrame,
+      interactiveSurface,
       interactive
     };
   };
@@ -231,6 +259,48 @@
     !element.hidden &&
     element.getClientRects().length > 0
   );
+
+  const applyForcedHoverState = (instance) => {
+    if (!instance?.interactive || !(instance.button instanceof HTMLElement) || instance.hoverStateApplied) {
+      return;
+    }
+
+    const computed = window.getComputedStyle(instance.button);
+    const highlightedBackground = computed.getPropertyValue('--menu-item-highlighted').trim();
+    instance.hoverStateSnapshot = {
+      backgroundColor: instance.button.style.backgroundColor,
+      dataRevealed: instance.button.getAttribute('data-revealed'),
+      dataHighlighted: instance.button.getAttribute('data-highlighted')
+    };
+
+    instance.button.setAttribute('data-revealed', '');
+    instance.button.setAttribute('data-highlighted', '');
+    if (highlightedBackground) {
+      instance.button.style.backgroundColor = highlightedBackground;
+    }
+    instance.hoverStateApplied = true;
+  };
+
+  const clearForcedHoverState = (instance) => {
+    if (!instance?.hoverStateApplied || !(instance.button instanceof HTMLElement)) {
+      return;
+    }
+
+    const snapshot = instance.hoverStateSnapshot || {};
+    instance.button.style.backgroundColor = snapshot.backgroundColor || '';
+    if (snapshot.dataRevealed === null) {
+      instance.button.removeAttribute('data-revealed');
+    } else {
+      instance.button.setAttribute('data-revealed', snapshot.dataRevealed);
+    }
+    if (snapshot.dataHighlighted === null) {
+      instance.button.removeAttribute('data-highlighted');
+    } else {
+      instance.button.setAttribute('data-highlighted', snapshot.dataHighlighted);
+    }
+    instance.hoverStateSnapshot = null;
+    instance.hoverStateApplied = false;
+  };
 
   const applyForcedRevealState = (instance) => {
     if (!instance?.interactive || !(instance.button instanceof HTMLElement) || instance.revealStateApplied) {
@@ -306,7 +376,20 @@
       instance.surface.setAttribute('data-state', 'closed');
       instance.wrapper.hidden = true;
       instance.wrapper.style.pointerEvents = 'none';
+      if (instance.surface instanceof HTMLElement) {
+        instance.surface.style.pointerEvents = 'none';
+      }
+      if (instance.dialog instanceof HTMLElement) {
+        instance.dialog.style.pointerEvents = 'none';
+      }
+      if (instance.dialogFrame instanceof HTMLElement) {
+        instance.dialogFrame.style.pointerEvents = 'none';
+      }
+      if (instance.interactiveSurface instanceof HTMLElement) {
+        instance.interactiveSurface.style.pointerEvents = 'none';
+      }
       instance.button?.removeAttribute('aria-describedby');
+      clearForcedHoverState(instance);
       clearForcedRevealState(instance);
       instance.isOpen = false;
 
@@ -349,7 +432,7 @@
       if (instance.side === 'right') {
         x = Math.round(rect.right + GAP);
         y = instance.align === 'start'
-          ? Math.round(rect.top)
+          ? Math.round(rect.top - (instance.owner === 'search-chats-sidebar' ? SEARCH_CHATS_CARD_Y_OFFSET : 0))
           : Math.round(rect.top + (rect.height - tooltipRect.height) / 2);
         instance.wrapper.style.setProperty('--radix-popper-transform-origin', instance.align === 'start' ? '0px 0px' : '0px 50%');
       } else {
@@ -379,7 +462,19 @@
       hideAll({ exceptOwner: instance.owner });
 
       instance.wrapper.hidden = false;
-      instance.wrapper.style.pointerEvents = instance.interactive ? 'auto' : 'none';
+      instance.wrapper.style.pointerEvents = 'none';
+      if (instance.surface instanceof HTMLElement) {
+        instance.surface.style.pointerEvents = 'none';
+      }
+      if (instance.dialog instanceof HTMLElement) {
+        instance.dialog.style.pointerEvents = 'none';
+      }
+      if (instance.dialogFrame instanceof HTMLElement) {
+        instance.dialogFrame.style.pointerEvents = 'none';
+      }
+      if (instance.interactiveSurface instanceof HTMLElement) {
+        instance.interactiveSurface.style.pointerEvents = instance.interactive ? 'auto' : 'none';
+      }
       instance.surface.setAttribute('data-state', instance.interactive ? 'open' : 'delayed-open');
       if (instance.srOnly?.id) {
         instance.button.setAttribute('aria-describedby', instance.srOnly.id);
@@ -446,6 +541,8 @@
         closeTimer: null,
         rafId: null,
         isOpen: false,
+        hoverStateApplied: false,
+        hoverStateSnapshot: null,
         revealStateApplied: false,
         revealStateSnapshot: null,
         cleanupFns: [],
@@ -458,10 +555,12 @@
       const onMouseEnter = () => {
         keyboardMode = false;
         clearForcedRevealState(instance);
+        applyForcedHoverState(instance);
         scheduleOpen(instance);
       };
 
       const onMouseLeave = () => {
+        clearForcedHoverState(instance);
         scheduleHide(instance);
       };
 
@@ -504,6 +603,7 @@
         const onSurfaceMouseEnter = () => {
           window.clearTimeout(instance.closeTimer);
           instance.closeTimer = null;
+          clearForcedHoverState(instance);
           applyForcedRevealState(instance);
         };
 
@@ -524,14 +624,16 @@
           navigateToAuth('signup');
         };
 
-        instance.wrapper.addEventListener('mouseenter', onSurfaceMouseEnter);
-        instance.wrapper.addEventListener('mouseleave', onSurfaceMouseLeave);
+        const interactiveTarget = instance.interactiveSurface || instance.dialog || instance.surface;
+
+        interactiveTarget?.addEventListener('mouseenter', onSurfaceMouseEnter);
+        interactiveTarget?.addEventListener('mouseleave', onSurfaceMouseLeave);
         instance.wrapper.querySelector('[data-testid="unsupported-nav-login"]')?.addEventListener('click', onLoginClick);
         instance.wrapper.querySelector('[data-testid="unsupported-nav-signup"]')?.addEventListener('click', onSignupClick);
 
         instance.cleanupFns.push(() => {
-          instance.wrapper.removeEventListener('mouseenter', onSurfaceMouseEnter);
-          instance.wrapper.removeEventListener('mouseleave', onSurfaceMouseLeave);
+          interactiveTarget?.removeEventListener('mouseenter', onSurfaceMouseEnter);
+          interactiveTarget?.removeEventListener('mouseleave', onSurfaceMouseLeave);
           instance.wrapper.querySelector('[data-testid="unsupported-nav-login"]')?.removeEventListener('click', onLoginClick);
           instance.wrapper.querySelector('[data-testid="unsupported-nav-signup"]')?.removeEventListener('click', onSignupClick);
         });
