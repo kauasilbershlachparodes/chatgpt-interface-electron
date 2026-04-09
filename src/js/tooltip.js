@@ -8,11 +8,43 @@
   const SEARCH_CHATS_CARD_Y_OFFSET = 16;
   const HIDDEN_TOOLTIP_STYLE = 'position: absolute; border: 0px; width: 1px; height: 1px; padding: 0px; margin: -1px; overflow: hidden; clip: rect(0px, 0px, 0px, 0px); white-space: nowrap; overflow-wrap: normal;';
 
+  const isProbablyVisibleElement = (element) => (
+    element instanceof HTMLElement &&
+    element.isConnected &&
+    !element.hidden &&
+    element.getClientRects().length > 0 &&
+    window.getComputedStyle(element).display !== 'none' &&
+    window.getComputedStyle(element).visibility !== 'hidden' &&
+    !element.closest('[aria-hidden="true"], [inert]')
+  );
+
   const findSidebarItemByLabel = (label) => {
     const normalizedLabel = String(label).trim().toLowerCase();
     const labels = Array.from(document.querySelectorAll('[data-sidebar-item="true"] .truncate'));
     const labelNode = labels.find((node) => (node.textContent || '').trim().toLowerCase() === normalizedLabel);
     return labelNode ? labelNode.closest('[data-sidebar-item="true"]') : null;
+  };
+
+  const findTinyBarItemBySrOnly = (label) => {
+    const normalizedLabel = String(label).trim().toLowerCase();
+    const labels = Array.from(document.querySelectorAll('#stage-sidebar-tiny-bar [data-sidebar-item="true"] .sr-only'));
+    const labelNode = labels.find((node) => (node.textContent || '').trim().toLowerCase() === normalizedLabel);
+    return labelNode ? labelNode.closest('[data-sidebar-item="true"]') : null;
+  };
+
+  const findVisibleSidebarItem = (label) => {
+    const expandedItem = findSidebarItemByLabel(label);
+    const collapsedItem = findTinyBarItemBySrOnly(label);
+
+    if (isProbablyVisibleElement(expandedItem)) {
+      return expandedItem;
+    }
+
+    if (isProbablyVisibleElement(collapsedItem)) {
+      return collapsedItem;
+    }
+
+    return expandedItem || collapsedItem;
   };
 
   const navigateToAuth = (mode) => {
@@ -62,12 +94,18 @@
       getElement: () => document.querySelector('#stage-sidebar-tiny-bar [data-testid="create-new-chat-button"]')
     },
     {
+      owner: 'images-btn',
+      type: 'images',
+      side: 'right',
+      getElement: () => document.querySelector('#stage-sidebar-tiny-bar [data-testid="sidebar-item-library"]')
+    },
+    {
       owner: 'search-chats-sidebar',
       type: 'search-chats-card',
       side: 'right',
       align: 'start',
       interactive: true,
-      getElement: () => findSidebarItemByLabel('Search chats')
+      getElement: () => findVisibleSidebarItem('Search chats')
     }
   ];
 
@@ -162,6 +200,7 @@
     }
 
     const labelByType = {
+      images: 'Images',
       dictation: 'Dictate',
       voice: 'Use Voice',
       'close-sidebar': 'Close sidebar',
@@ -252,6 +291,8 @@
       node.remove();
     });
   };
+
+  const isHelpMenuOpen = () => document.documentElement.getAttribute('data-help-menu-open') === 'true';
 
   const isElementAvailable = (element) => (
     element instanceof HTMLElement &&
@@ -357,6 +398,27 @@
     let bindRafId = null;
     const instances = new Map();
     const cleanup = [];
+
+    const updateSuppressedInteractionState = () => {
+      const helpMenuOpen = isHelpMenuOpen();
+      instances.forEach((instance) => {
+        if (!(instance.button instanceof HTMLElement)) {
+          return;
+        }
+
+        const shouldSuppress = helpMenuOpen && (
+          instance.side === 'right' ||
+          instance.owner === 'close-sidebar-btn'
+        );
+        if (shouldSuppress) {
+          instance.button.style.cursor = 'default';
+          instance.button.style.pointerEvents = 'none';
+        } else {
+          instance.button.style.cursor = '';
+          instance.button.style.pointerEvents = '';
+        }
+      });
+    };
 
     const hideInstance = (instance) => {
       if (!instance) {
@@ -492,7 +554,7 @@
     };
 
     const scheduleOpen = (instance) => {
-      if (!instance || !isElementAvailable(instance.button)) {
+      if (!instance || !isElementAvailable(instance.button) || isHelpMenuOpen()) {
         return;
       }
 
@@ -551,9 +613,16 @@
 
       instances.set(config.owner, instance);
       button.dataset.tooltipBound = 'true';
+      updateSuppressedInteractionState();
 
       const onMouseEnter = () => {
+        if (isHelpMenuOpen()) {
+          return;
+        }
         keyboardMode = false;
+        document.dispatchEvent(new CustomEvent('stage:close-click-popovers', {
+          detail: { source: 'tooltip', owner: instance.owner }
+        }));
         clearForcedRevealState(instance);
         applyForcedHoverState(instance);
         scheduleOpen(instance);
@@ -565,6 +634,9 @@
       };
 
       const onFocus = () => {
+        if (isHelpMenuOpen()) {
+          return;
+        }
         if (shouldOpenFromFocus()) {
           scheduleOpen(instance);
         }
@@ -653,6 +725,7 @@
 
     const bindAvailableTooltips = () => {
       TOOLTIPS.forEach(bindTooltip);
+      updateSuppressedInteractionState();
     };
 
     const scheduleBind = () => {
@@ -716,8 +789,14 @@
       }
     };
 
+    const onHelpMenuStateChange = () => {
+      hideAll();
+      updateSuppressedInteractionState();
+    };
+
     document.addEventListener('keydown', onDocumentKeyDown, true);
     document.addEventListener('pointerdown', onDocumentPointerDown, true);
+    document.addEventListener('stage:help-menu-state', onHelpMenuStateChange);
     window.addEventListener('resize', onWindowResize, { passive: true });
     window.addEventListener('scroll', onWindowScroll, { passive: true, capture: true });
     window.addEventListener('blur', onWindowBlur);
@@ -725,6 +804,7 @@
 
     cleanup.push(() => document.removeEventListener('keydown', onDocumentKeyDown, true));
     cleanup.push(() => document.removeEventListener('pointerdown', onDocumentPointerDown, true));
+    cleanup.push(() => document.removeEventListener('stage:help-menu-state', onHelpMenuStateChange));
     cleanup.push(() => window.removeEventListener('resize', onWindowResize, { passive: true }));
     cleanup.push(() => window.removeEventListener('scroll', onWindowScroll, { passive: true, capture: true }));
     cleanup.push(() => window.removeEventListener('blur', onWindowBlur));
@@ -740,7 +820,9 @@
 
       observer.observe(observerTarget, {
         childList: true,
-        subtree: true
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['class', 'style', 'hidden', 'aria-hidden', 'inert', 'data-state', 'aria-expanded']
       });
 
       cleanup.push(() => observer.disconnect());

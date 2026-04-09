@@ -1,7 +1,62 @@
 // src/js/sidebar.js
 (() => {
   const SIDEBAR_STORAGE_KEY = 'stage-slideover-sidebar-state';
+  const SIDEBAR_COOKIE_KEY = 'stage_slideover_sidebar_state';
   const MOBILE_BREAKPOINT = '(max-width: 767px)';
+  const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+  const VALID_SIDEBAR_STATES = new Set(['expanded', 'collapsed']);
+
+  const readSidebarStateCookie = () => {
+    const cookies = String(document.cookie || '').split(';');
+    for (const rawCookie of cookies) {
+      const cookie = rawCookie.trim();
+      if (!cookie.startsWith(`${SIDEBAR_COOKIE_KEY}=`)) {
+        continue;
+      }
+
+      const value = decodeURIComponent(cookie.slice(SIDEBAR_COOKIE_KEY.length + 1));
+      if (VALID_SIDEBAR_STATES.has(value)) {
+        return value;
+      }
+    }
+
+    return null;
+  };
+
+  const readPersistedSidebarState = () => {
+    try {
+      const storedValue = window.localStorage.getItem(SIDEBAR_STORAGE_KEY);
+      if (VALID_SIDEBAR_STATES.has(storedValue)) {
+        return storedValue;
+      }
+    } catch (error) {
+      // ignore storage failures
+    }
+
+    return readSidebarStateCookie();
+  };
+
+  const persistSidebarState = (state) => {
+    if (!VALID_SIDEBAR_STATES.has(state)) {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(SIDEBAR_STORAGE_KEY, state);
+    } catch (error) {
+      // ignore storage failures
+    }
+
+    document.cookie = `${SIDEBAR_COOKIE_KEY}=${encodeURIComponent(state)}; Max-Age=${SIDEBAR_COOKIE_MAX_AGE}; Path=/; SameSite=Lax`;
+  };
+
+  const syncRootSidebarState = (state) => {
+    if (VALID_SIDEBAR_STATES.has(state)) {
+      document.documentElement.setAttribute('data-sidebar-desktop-state', state);
+    } else {
+      document.documentElement.removeAttribute('data-sidebar-desktop-state');
+    }
+  };
 
   const initSidebarToggle = () => {
     const sidebar = document.getElementById('stage-slideover-sidebar');
@@ -70,6 +125,7 @@
       const { persist = true, focusTarget = null } = options;
 
       desktopExpanded = expanded;
+      syncRootSidebarState(expanded ? 'expanded' : 'collapsed');
       sidebar.dataset.sidebarState = expanded ? 'expanded' : 'collapsed';
       sidebar.dataset.sidebarMode = 'desktop';
       sidebar.style.display = '';
@@ -146,11 +202,7 @@
       closeButton.setAttribute('data-state', expanded ? 'open' : 'closed');
 
       if (persist) {
-        try {
-          window.localStorage.setItem(SIDEBAR_STORAGE_KEY, expanded ? 'expanded' : 'collapsed');
-        } catch (error) {
-          // ignore storage failures
-        }
+        persistSidebarState(expanded ? 'expanded' : 'collapsed');
       }
 
       if (focusTarget instanceof HTMLElement) {
@@ -290,14 +342,19 @@
       }
     });
 
+    const persistedState = readPersistedSidebarState();
     const isInitiallyCollapsedInMarkup = (
       sidebar.style.width === 'var(--sidebar-rail-width)' ||
       sidebar.dataset.sidebarState === 'collapsed' ||
       closeButton.getAttribute('aria-expanded') === 'false'
     );
 
-    desktopExpanded = !isInitiallyCollapsedInMarkup;
+    desktopExpanded = persistedState
+      ? persistedState === 'expanded'
+      : !isInitiallyCollapsedInMarkup;
     mobileOpen = false;
+    syncRootSidebarState(desktopExpanded ? 'expanded' : 'collapsed');
+    persistSidebarState(desktopExpanded ? 'expanded' : 'collapsed');
     syncResponsiveState();
 
     if (typeof mobileQuery.addEventListener === 'function') {
@@ -385,7 +442,54 @@
     menu.style.webkitOverflowScrolling = 'touch';
     menu.style.overscrollBehavior = 'contain';
     const menuItems = () => Array.from(menu.querySelectorAll('[role="menuitem"]'));
+    const allowedSidebarLoginButton = sidebar.querySelector('button[onclick*="login.html"]');
     let isOpen = false;
+    let helpTriggerBackgroundSnapshot = '';
+
+    const updateSidebarInteractivity = (blocked) => {
+      const interactiveTargets = Array.from(sidebar.querySelectorAll('[data-sidebar-item="true"], button, a, [role="button"]'));
+
+      interactiveTargets.forEach((element) => {
+        if (!(element instanceof HTMLElement)) {
+          return;
+        }
+
+        const shouldAllow = (
+          element === helpTrigger ||
+          helpTrigger.contains(element) ||
+          element === allowedSidebarLoginButton ||
+          (allowedSidebarLoginButton instanceof HTMLElement && allowedSidebarLoginButton.contains(element))
+        );
+
+        if (shouldAllow) {
+          element.style.pointerEvents = '';
+          element.style.cursor = '';
+          return;
+        }
+
+        if (blocked) {
+          element.style.pointerEvents = 'none';
+          element.style.cursor = 'default';
+        } else {
+          element.style.pointerEvents = '';
+          element.style.cursor = '';
+        }
+      });
+    };
+
+    const applyHelpTriggerOpenState = () => {
+      const computed = window.getComputedStyle(helpTrigger);
+      const openBackground = computed.getPropertyValue('--menu-item-open').trim();
+      helpTriggerBackgroundSnapshot = helpTrigger.style.backgroundColor;
+      if (openBackground) {
+        helpTrigger.style.backgroundColor = openBackground;
+      }
+    };
+
+    const clearHelpTriggerOpenState = () => {
+      helpTrigger.style.backgroundColor = helpTriggerBackgroundSnapshot || '';
+      helpTriggerBackgroundSnapshot = '';
+    };
 
     const updatePosition = () => {
       wrapper.hidden = false;
@@ -393,7 +497,7 @@
       const triggerRect = helpTrigger.getBoundingClientRect();
       const menuRect = menu.getBoundingClientRect();
       const margin = 6;
-      const gap = 8;
+      const gap = 4;
       const mobile = window.matchMedia(MOBILE_BREAKPOINT).matches;
       const preferredX = sidebarRect.left + margin;
       const maxViewportX = window.innerWidth - menuRect.width - margin;
@@ -425,6 +529,12 @@
         return;
       }
       isOpen = false;
+      document.documentElement.removeAttribute('data-help-menu-open');
+      document.dispatchEvent(new CustomEvent('stage:help-menu-state', {
+        detail: { open: false }
+      }));
+      clearHelpTriggerOpenState();
+      updateSidebarInteractivity(false);
       wrapper.hidden = true;
       wrapper.style.pointerEvents = 'none';
       menu.setAttribute('data-state', 'closed');
@@ -440,6 +550,15 @@
         return;
       }
       isOpen = true;
+      document.documentElement.setAttribute('data-help-menu-open', 'true');
+      document.dispatchEvent(new CustomEvent('stage:help-menu-state', {
+        detail: { open: true }
+      }));
+      applyHelpTriggerOpenState();
+      document.dispatchEvent(new CustomEvent('stage:close-click-popovers', {
+        detail: { source: 'help-menu', owner: 'help-menu' }
+      }));
+      updateSidebarInteractivity(true);
       wrapper.hidden = false;
       wrapper.style.pointerEvents = 'auto';
       menu.setAttribute('data-state', 'open');
