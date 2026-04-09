@@ -103,6 +103,33 @@
   const getThreadBottomContainer = () => document.getElementById('thread-bottom-container');
   const getComposerParentLayoutRoot = () => document.querySelector('#thread .composer-parent > div');
 
+  const ensureConversationFooterDisclaimer = (layoutRoot) => {
+    if (!(layoutRoot instanceof HTMLElement)) {
+      return;
+    }
+
+    let footerDisclaimer = layoutRoot.querySelector('[data-thread-footer-disclaimer]');
+    if (footerDisclaimer instanceof HTMLElement) {
+      return;
+    }
+
+    footerDisclaimer = document.createElement('div');
+    footerDisclaimer.setAttribute('data-thread-footer-disclaimer', 'true');
+    footerDisclaimer.className = '-mt-4 text-token-text-secondary relative z-20 w-full overflow-visible text-center text-xs [view-transition-name:var(--vt-disclaimer)] md:px-[60px]';
+    footerDisclaimer.style.height = 'auto';
+    footerDisclaimer.style.opacity = '1';
+    footerDisclaimer.style.transform = 'none';
+    footerDisclaimer.innerHTML = `
+      <div class="select-none active:select-auto data-has-range-start:select-auto flex min-h-8 w-full items-center justify-center p-2">
+        <div class="text-token-text-secondary pointer-events-auto">
+          <div>ChatGPT can make mistakes. Check important info. See <a class="text-token-text-secondary decoration-token-text-secondary cursor-pointer underline">Cookie Preferences</a>.</div>
+        </div>
+      </div>
+    `;
+
+    layoutRoot.appendChild(footerDisclaimer);
+  };
+
   const createEdge = (edge) => {
     const node = document.createElement('div');
     node.setAttribute('aria-hidden', 'true');
@@ -122,6 +149,7 @@
 
     let turnsHost = layoutRoot.querySelector('[data-thread-turns]');
     if (turnsHost instanceof HTMLElement) {
+      ensureConversationFooterDisclaimer(layoutRoot);
       return turnsHost;
     }
 
@@ -191,6 +219,7 @@
     }
 
     layoutRoot.append(topEdge, turnsHost, bottomEdge, preservedThreadBottom);
+    ensureConversationFooterDisclaimer(layoutRoot);
     return turnsHost;
   };
 

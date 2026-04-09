@@ -687,12 +687,22 @@
         const onLoginClick = (event) => {
           event.preventDefault();
           event.stopPropagation();
+          hideAll();
+          if (typeof window.openNoAuthLoginModal === 'function') {
+            window.openNoAuthLoginModal('login', { collapseSidebar: true });
+            return;
+          }
           navigateToAuth('login');
         };
 
         const onSignupClick = (event) => {
           event.preventDefault();
           event.stopPropagation();
+          hideAll();
+          if (typeof window.openNoAuthLoginModal === 'function') {
+            window.openNoAuthLoginModal('signup', { collapseSidebar: true });
+            return;
+          }
           navigateToAuth('signup');
         };
 

@@ -86,6 +86,303 @@
         pointer-events: none !important;
       }
     </style>
+    <style>
+      html[data-authenticated-session="true"] #google-one-tap-anchor {
+        display: none !important;
+      }
+
+      html:not([data-authenticated-session="true"]) [data-matrix-auth-only] {
+        display: none !important;
+      }
+
+    </style>
+    <style>
+      html[data-cookie-banner-hidden="true"] #cookie-consent-anchor {
+        display: none !important;
+      }
+
+      #cookie-consent-anchor {
+        position: relative;
+        right: auto;
+        bottom: auto;
+        left: auto;
+        z-index: auto;
+        width: 100%;
+        margin-top: 12px;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+      }
+
+      #cookie-consent-anchor > div {
+        width: 100%;
+      }
+
+      #cookie-consent-slot {
+        width: 100%;
+        flex: 0 0 auto;
+      }
+
+      html[data-cookie-modal-open="true"],
+      html[data-cookie-modal-open="true"] body {
+        overflow: hidden;
+      }
+
+      #cookie-preferences-root[hidden] {
+        display: none !important;
+      }
+
+      #cookie-preferences-root {
+        position: fixed;
+        inset: 0;
+        z-index: 10001;
+        isolation: isolate;
+      }
+    </style>
+    <script>
+      (() => {
+        const cookieName = 'matrix_cookie_consent';
+        const storageKey = 'matrix_cookie_consent';
+
+        const getCookieValue = (name) => {
+          const cookies = String(document.cookie || '').split(';');
+          const prefix = `${encodeURIComponent(name)}=`;
+
+          for (const rawCookie of cookies) {
+            const cookie = rawCookie.trim();
+            if (!cookie.startsWith(prefix)) {
+              continue;
+            }
+
+            return decodeURIComponent(cookie.slice(prefix.length));
+          }
+
+          return '';
+        };
+
+        let consentValue = getCookieValue(cookieName);
+
+        if (!consentValue) {
+          try {
+            consentValue = window.localStorage.getItem(storageKey) || '';
+          } catch (error) {
+            consentValue = '';
+          }
+        }
+
+        if (consentValue) {
+          document.documentElement.setAttribute(
+            'data-cookie-banner-hidden',
+            'true',
+          );
+        }
+      })();
+    </script>
+    <style>
+      #google-one-tap-card {
+        box-sizing: border-box;
+        width: 368px;
+        min-height: 302px;
+        border: 1px solid #5f6368;
+        border-radius: 4px;
+        background: #131314;
+        color: #e3e3e3;
+        box-shadow: none;
+        font-family: "Google Sans", Roboto, Arial, sans-serif;
+        overflow: hidden;
+      }
+
+      #google-one-tap-header {
+        display: flex;
+        align-items: center;
+        min-height: 48px;
+        padding: 0 4px 0 16px;
+        border-bottom: 1px solid #3c4043;
+      }
+
+      #google-one-tap-header-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+        flex: 1;
+        color: #e3e3e3;
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 20px;
+        letter-spacing: 0.25px;
+      }
+
+      #google-one-tap-header-title svg {
+        display: block;
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+        overflow: visible;
+      }
+
+      #google-one-tap-close {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 48px;
+        margin-left: 4px;
+        padding: 0;
+        border: 0;
+        border-radius: 999px;
+        background: transparent;
+        color: #9aa0a6;
+        font-size: 0;
+        line-height: 0;
+        cursor: pointer;
+        transition:
+          background-color 0.18s ease,
+          color 0.18s ease;
+      }
+
+      #google-one-tap-close:hover {
+        background: rgba(232, 234, 237, 0.08);
+        color: #e8eaed;
+      }
+
+      #google-one-tap-close:focus-visible {
+        outline: 2px solid #8ab4f8;
+        outline-offset: 2px;
+        background: rgba(232, 234, 237, 0.08);
+        color: #e8eaed;
+      }
+
+      #google-one-tap-close svg {
+        display: block;
+        width: 24px;
+        height: 24px;
+        pointer-events: none;
+      }
+
+      #google-one-tap-content {
+        padding: 12px 16px 14px;
+      }
+
+      #google-one-tap-card .lgKYGb-v0h5Oe-Ne3sFf {
+        position: relative;
+        min-height: 132px;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+
+      #google-one-tap-card .k77Iif-v0h5Oe {
+        width: 236px;
+        margin: 0;
+        color: #e3e3e3;
+        font-size: 20px;
+        font-weight: 400;
+        line-height: 28px;
+        letter-spacing: 0;
+      }
+
+      #google-one-tap-card .u6YOj-v0h5Oe {
+        width: 218px;
+        margin: 10px 0 0;
+        color: #c4c7c5;
+        font-family: Roboto, Arial, sans-serif;
+        font-size: 14px;
+        font-weight: 400;
+        line-height: 20px;
+        letter-spacing: 0;
+      }
+
+      #google-one-tap-card .lgKYGb-v0h5Oe-HiaYvf {
+        position: absolute;
+        right: 18px;
+        top: 74px;
+      }
+
+      #google-one-tap-card .OAU7Vd-PQbLGe {
+        display: block;
+        width: 109px;
+        height: 68px;
+      }
+
+      #google-one-tap-continue {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 36px;
+        margin-top: 18px;
+        padding: 0 16px;
+        border: 0;
+        border-radius: 4px;
+        background: #1a73e8;
+        color: #ffffff;
+        font-family: "Google Sans", Roboto, Arial, sans-serif;
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 20px;
+        letter-spacing: 0.25px;
+        cursor: pointer;
+        transition:
+          background-color 0.18s ease,
+          box-shadow 0.18s ease;
+      }
+
+      #google-one-tap-continue:hover {
+        background: #1b66c9;
+      }
+
+      #google-one-tap-continue:focus-visible {
+        outline: 2px solid #8ab4f8;
+        outline-offset: 2px;
+        background: #1b66c9;
+      }
+    </style>
+    <script>
+      (() => {
+        const getCookieValue = (name) => {
+          const cookies = String(document.cookie || '').split(';');
+          const prefix = `${encodeURIComponent(name)}=`;
+
+          for (const rawCookie of cookies) {
+            const cookie = rawCookie.trim();
+            if (cookie.startsWith(prefix)) {
+              return decodeURIComponent(cookie.slice(prefix.length));
+            }
+          }
+
+          return '';
+        };
+
+        let lastAuthenticatedState = null;
+
+        const syncGoogleFrameVisibility = () => {
+          const isAuthenticated = getCookieValue('matrix_role') === 'authenticated';
+
+          if (isAuthenticated) {
+            document.documentElement.setAttribute('data-authenticated-session', 'true');
+          } else {
+            document.documentElement.removeAttribute('data-authenticated-session');
+          }
+
+          if (lastAuthenticatedState === true && !isAuthenticated) {
+            const frame = document.getElementById('google-one-tap-anchor');
+            if (frame) {
+              frame.style.display = '';
+            }
+          }
+
+          lastAuthenticatedState = isAuthenticated;
+        };
+
+        syncGoogleFrameVisibility();
+        window.addEventListener('focus', syncGoogleFrameVisibility);
+        window.addEventListener('pageshow', syncGoogleFrameVisibility);
+        document.addEventListener('visibilitychange', () => {
+          if (!document.hidden) {
+            syncGoogleFrameVisibility();
+          }
+        });
+      })();
+    </script>
     
   </head>
   <body class="">
@@ -1075,6 +1372,7 @@
                         tabindex="0"
                         data-fill=""
                         class="group __menu-item hoverable gap-1.5"
+                        data-matrix-auth-only="true"
                         data-sidebar-keep-open="true"
                         data-state="closed"
                         data-sidebar-item="true"
@@ -1103,6 +1401,7 @@
                         tabindex="0"
                         data-fill=""
                         class="group __menu-item hoverable gap-1.5"
+                        data-matrix-auth-only="true"
                         data-sidebar-keep-open="true"
                         data-state="closed"
                         data-sidebar-item="true"
@@ -1278,7 +1577,8 @@
                         <button
                           type="button"
                           class="btn relative group-focus-within/dialog:focus-visible:[outline-width:1.5px] group-focus-within/dialog:focus-visible:[outline-offset:2.5px] group-focus-within/dialog:focus-visible:[outline-style:solid] group-focus-within/dialog:focus-visible:[outline-color:var(--text-primary)] btn-secondary btn-large w-full"
-                          onclick="window.location.href='login.html'"
+                          data-no-auth-modal-trigger="login"
+                          data-no-auth-collapse-sidebar="true"
                         >
                           <div class="flex items-center justify-center">
                             Log in
@@ -1382,7 +1682,7 @@
                               type="button"
                               class="btn relative group-focus-within/dialog:focus-visible:[outline-width:1.5px] group-focus-within/dialog:focus-visible:[outline-offset:2.5px] group-focus-within/dialog:focus-visible:[outline-style:solid] group-focus-within/dialog:focus-visible:[outline-color:var(--text-primary)] btn-primary"
                               data-testid="login-button"
-                              onclick="window.location.href='login.html'"
+                              data-no-auth-modal-trigger="login"
                             >
                               <div class="flex items-center justify-center">
                                 <span
@@ -1397,7 +1697,7 @@
                               type="button"
                               class="btn relative group-focus-within/dialog:focus-visible:[outline-width:1.5px] group-focus-within/dialog:focus-visible:[outline-offset:2.5px] group-focus-within/dialog:focus-visible:[outline-style:solid] group-focus-within/dialog:focus-visible:[outline-color:var(--text-primary)] btn-secondary screen-arch:hidden md:screen-arch:flex max-xs:hidden"
                               data-testid="signup-button"
-                              onclick="window.location.href='log-in-or-create-account.html'"
+                              data-no-auth-modal-trigger="signup"
                             >
                               <div class="flex items-center justify-center">
                                 Sign up for free
@@ -1420,7 +1720,7 @@
                     >
 <div class="relative basis-auto flex-col shrink flex flex-col justify-end max-sm:grow max-sm:justify-center sm:min-h-[calc(42svh-var(--header-height))]"><div class="flex justify-center" data-splash-headline-option="ON_YOUR_MIND"><div class="mb-[40px] hidden text-center sm:block"><div class="relative inline-flex justify-center text-center text-2xl leading-9 font-semibold"><div><div class="grid-cols-1 items-center justify-end" style="view-transition-name:var(--vt-splash-screen-headline)"><div style="opacity:1;transform:none"><h1 class="text-page-header inline-flex items-baseline whitespace-pre-wrap min-h-10.5"><div class="px-1 text-pretty whitespace-pre-wrap"></div></h1></div></div></div></div></div><div class="text-token-text-primary mt-[var(--screen-optical-compact-offset-amount)] [display:var(--display-hidden-until-loaded,flex)] w-full shrink flex-col items-center justify-center px-4 transition-opacity sm:hidden h-full opacity-100"><div class="relative inline-flex justify-center text-center text-2xl leading-9 font-semibold"><div><div class="grid-cols-1 items-center justify-end" style="view-transition-name:var(--vt-splash-screen-headline)"><div style="opacity:1;transform:none"><h1 class="text-page-header inline-flex items-baseline whitespace-pre-wrap min-h-10.5"><div class="px-1 text-pretty whitespace-pre-wrap"></div></h1></div></div></div></div><div class="" style="opacity: 1;"></div></div></div></div>
     <script src="src/js/splash-headline.js" data-splash-headline="rotating-copy"></script>
-                      <div id="thread-bottom-container" class="sticky bottom-0 z-10 group/thread-bottom-container relative isolate w-full basis-auto has-data-has-thread-error:pt-2 has-data-has-thread-error:[box-shadow:var(--sharp-edge-bottom-shadow)] md:border-transparent md:pt-0 dark:border-white/20 md:dark:border-transparent print:hidden single-line min-h-0 sm:grow flex flex-col"><div id="thread-bottom"><div><div class="text-base mx-auto [--thread-content-margin:var(--thread-content-margin-xs,calc(var(--spacing)*4))] @w-sm/main:[--thread-content-margin:var(--thread-content-margin-sm,calc(var(--spacing)*6))] @w-lg/main:[--thread-content-margin:var(--thread-content-margin-lg,calc(var(--spacing)*16))] px-(--thread-content-margin)"><div class="[--thread-content-max-width:40rem] @w-lg/main:[--thread-content-max-width:48rem] mx-auto max-w-(--thread-content-max-width) flex-1 mb-[var(--thread-component-gap,1rem)]"><div class="flex justify-center empty:hidden"></div><div class="pointer-events-auto relative z-1 flex h-(--composer-container-height,100%) max-w-full flex-(--composer-container-flex,1) flex-col"><form class="group/composer w-full" style="view-transition-name:var(--vt-composer)" data-type="unified-composer"><div class="hidden"><input multiple="" type="file" style="border:0;clip:rect(0, 0, 0, 0);clip-path:inset(50%);height:1px;margin:0 -1px -1px 0;overflow:hidden;padding:0;position:absolute;width:1px;white-space:nowrap" tabindex="-1" id="upload-files"></div><div class=""><div class="bg-token-bg-primary corner-superellipse/1.1 cursor-text overflow-clip bg-clip-padding p-2.5 contain-inline-size motion-safe:transition-colors motion-safe:duration-200 motion-safe:ease-in-out dark:bg-[#303030] grid grid-cols-[auto_1fr_auto] [grid-template-areas:'header_header_header'_'leading_primary_trailing'_'._footer_.'] group-data-expanded/composer:[grid-template-areas:'header_header_header'_'primary_primary_primary'_'leading_footer_trailing'] shadow-short-composer" data-composer-surface="true" style="border-radius:28px"><div class="[grid-area:leading]"><span class="flex" data-state="closed"><button type="button" class="composer-btn" data-testid="composer-plus-btn" aria-label="Add files and more" id="composer-plus-btn" aria-haspopup="menu" aria-expanded="false" data-state="closed"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true" class="icon"><use href="#6be74c" fill="currentColor"></use></svg></button></span></div><div class="-my-2.5 flex min-h-14 items-center overflow-x-hidden px-1.5 [grid-area:primary] group-data-expanded/composer:mb-0 group-data-expanded/composer:px-2.5"><div class="wcDTda_prosemirror-parent text-token-text-primary max-h-[max(30svh,5rem)] max-h-52 min-h-[var(--deep-research-composer-extra-height,unset)] flex-1 overflow-auto [scrollbar-width:thin] firefox vertical-scroll-fade-mask"><textarea class="wcDTda_fallbackTextarea" name="prompt-textarea" autofocus="" placeholder="Ask anything" aria-label="Chat with ChatGPT" data-virtualkeyboard="true" style="display: none;"></textarea><script nonce="">window.__oai_logHTML?window.__oai_logHTML():window.__oai_SSR_HTML=window.__oai_SSR_HTML||Date.now();requestAnimationFrame((function(){window.__oai_logTTI?window.__oai_logTTI():window.__oai_SSR_TTI=window.__oai_SSR_TTI||Date.now()}))</script><div contenteditable="true" translate="no" class="ProseMirror" id="prompt-textarea" data-virtualkeyboard="true" role="textbox" aria-multiline="true" aria-label="Chat with ChatGPT"><p data-placeholder="Ask anything" class="placeholder"><br class="ProseMirror-trailingBreak"></p></div></div></div><div class="flex items-center gap-2 [grid-area:trailing]"><div class="ms-auto flex items-center gap-1.5"><span class="" data-state="closed"><button aria-label="Start dictation" type="button" class="composer-btn h-9 min-h-9 w-9 min-w-9"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-label="" class="icon" font-size="inherit"><use href="#29f921" fill="currentColor"></use></svg></button></span><div><span class="" data-state="closed"><div><div class="relative"><button type="button" aria-label="Start Voice" class="composer-submit-button-color text-submit-btn-text flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:opacity-70 focus-visible:outline-black focus-visible:outline-none disabled:text-[#f4f4f4] disabled:opacity-30 dark:focus-visible:outline-white" style="view-transition-name: var(--vt-composer-speech-button);"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true" class="h-5 w-5"><use href="#f8aa74" fill="currentColor"></use></svg></button></div></div></span></div></div></div></div></form></div><input class="sr-only select-none" type="file" tabindex="-1" aria-hidden="true" id="upload-photos" accept="image/*" multiple=""><input class="sr-only select-none" type="file" tabindex="-1" aria-hidden="true" id="upload-camera" accept="image/*" capture="environment" multiple=""></div></div></div></div><div class=""><div class="text-base mx-auto [--thread-content-margin:var(--thread-content-margin-xs,calc(var(--spacing)*4))] @w-sm/main:[--thread-content-margin:var(--thread-content-margin-sm,calc(var(--spacing)*6))] @w-lg/main:[--thread-content-margin:var(--thread-content-margin-lg,calc(var(--spacing)*16))] px-(--thread-content-margin)"><div class="[--thread-content-max-width:40rem] @w-lg/main:[--thread-content-max-width:48rem] mx-auto max-w-(--thread-content-max-width) flex-1"><div class="" aria-hidden="false" style="opacity:1"></div><div class="max-w-full max-sm:hidden min-h-[108px] h-[70px]" style="opacity: 1;"></div></div></div></div><div class="[display:var(--display-hidden-until-loaded,block)] md:w-full md:absolute md:start-0 md:bottom-8"><div class="text-base mx-auto [--thread-content-margin:var(--thread-content-margin-xs,calc(var(--spacing)*4))] @w-sm/main:[--thread-content-margin:var(--thread-content-margin-sm,calc(var(--spacing)*6))] @w-lg/main:[--thread-content-margin:var(--thread-content-margin-lg,calc(var(--spacing)*16))] px-(--thread-content-margin)"><div class="[--thread-content-max-width:40rem] @w-lg/main:[--thread-content-max-width:48rem] mx-auto max-w-(--thread-content-max-width) flex-1"><div class="block flex-1 z-20"></div></div></div></div></div>
+                      <div id="thread-bottom-container" class="sticky bottom-0 z-10 group/thread-bottom-container relative isolate w-full basis-auto has-data-has-thread-error:pt-2 has-data-has-thread-error:[box-shadow:var(--sharp-edge-bottom-shadow)] md:border-transparent md:pt-0 dark:border-white/20 md:dark:border-transparent print:hidden single-line min-h-0 sm:grow flex flex-col"><div id="thread-bottom"><div><div class="text-base mx-auto [--thread-content-margin:var(--thread-content-margin-xs,calc(var(--spacing)*4))] @w-sm/main:[--thread-content-margin:var(--thread-content-margin-sm,calc(var(--spacing)*6))] @w-lg/main:[--thread-content-margin:var(--thread-content-margin-lg,calc(var(--spacing)*16))] px-(--thread-content-margin)"><div class="[--thread-content-max-width:40rem] @w-lg/main:[--thread-content-max-width:48rem] mx-auto max-w-(--thread-content-max-width) flex-1 mb-[var(--thread-component-gap,1rem)]"><div class="flex justify-center empty:hidden"></div><div class="pointer-events-auto relative z-1 flex h-(--composer-container-height,100%) max-w-full flex-(--composer-container-flex,1) flex-col"><form class="group/composer w-full" style="view-transition-name:var(--vt-composer)" data-type="unified-composer"><div class="hidden"><input multiple="" type="file" style="border:0;clip:rect(0, 0, 0, 0);clip-path:inset(50%);height:1px;margin:0 -1px -1px 0;overflow:hidden;padding:0;position:absolute;width:1px;white-space:nowrap" tabindex="-1" id="upload-files"></div><div class=""><div class="bg-token-bg-primary corner-superellipse/1.1 cursor-text overflow-clip bg-clip-padding p-2.5 contain-inline-size motion-safe:transition-colors motion-safe:duration-200 motion-safe:ease-in-out dark:bg-[#303030] grid grid-cols-[auto_1fr_auto] [grid-template-areas:'header_header_header'_'leading_primary_trailing'_'._footer_.'] group-data-expanded/composer:[grid-template-areas:'header_header_header'_'primary_primary_primary'_'leading_footer_trailing'] shadow-short-composer" data-composer-surface="true" style="border-radius:28px"><div class="[grid-area:leading]"><span class="flex" data-state="closed"><button type="button" class="composer-btn" data-testid="composer-plus-btn" aria-label="Add files and more" id="composer-plus-btn" aria-haspopup="menu" aria-expanded="false" data-state="closed"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true" class="icon"><use href="#6be74c" fill="currentColor"></use></svg></button></span></div><div class="-my-2.5 flex min-h-14 items-center overflow-x-hidden px-1.5 [grid-area:primary] group-data-expanded/composer:mb-0 group-data-expanded/composer:px-2.5"><div class="wcDTda_prosemirror-parent text-token-text-primary max-h-[max(30svh,5rem)] max-h-52 min-h-[var(--deep-research-composer-extra-height,unset)] flex-1 overflow-auto [scrollbar-width:thin] firefox vertical-scroll-fade-mask"><textarea class="wcDTda_fallbackTextarea" name="prompt-textarea" autofocus="" placeholder="Ask anything" aria-label="Chat with ChatGPT" data-virtualkeyboard="true" style="display: none;"></textarea><script nonce="">window.__oai_logHTML?window.__oai_logHTML():window.__oai_SSR_HTML=window.__oai_SSR_HTML||Date.now();requestAnimationFrame((function(){window.__oai_logTTI?window.__oai_logTTI():window.__oai_SSR_TTI=window.__oai_SSR_TTI||Date.now()}))</script><div contenteditable="true" translate="no" class="ProseMirror" id="prompt-textarea" data-virtualkeyboard="true" role="textbox" aria-multiline="true" aria-label="Chat with ChatGPT"><p data-placeholder="Ask anything" class="placeholder"><br class="ProseMirror-trailingBreak"></p></div></div></div><div class="flex items-center gap-2 [grid-area:trailing]"><div class="ms-auto flex items-center gap-1.5"><span class="" data-state="closed"><button aria-label="Start dictation" type="button" class="composer-btn h-9 min-h-9 w-9 min-w-9"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-label="" class="icon" font-size="inherit"><use href="#29f921" fill="currentColor"></use></svg></button></span><div><span class="" data-state="closed"><div><div class="relative"><button type="button" aria-label="Start Voice" class="composer-submit-button-color text-submit-btn-text flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:opacity-70 focus-visible:outline-black focus-visible:outline-none disabled:text-[#f4f4f4] disabled:opacity-30 dark:focus-visible:outline-white" style="view-transition-name: var(--vt-composer-speech-button);"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true" class="h-5 w-5"><use href="#f8aa74" fill="currentColor"></use></svg></button></div></div></span></div></div></div></div></form></div><input class="sr-only select-none" type="file" tabindex="-1" aria-hidden="true" id="upload-photos" accept="image/*" multiple=""><input class="sr-only select-none" type="file" tabindex="-1" aria-hidden="true" id="upload-camera" accept="image/*" capture="environment" multiple=""></div></div></div></div><div class="" data-thread-initial-spacer="true"><div class="text-base mx-auto [--thread-content-margin:var(--thread-content-margin-xs,calc(var(--spacing)*4))] @w-sm/main:[--thread-content-margin:var(--thread-content-margin-sm,calc(var(--spacing)*6))] @w-lg/main:[--thread-content-margin:var(--thread-content-margin-lg,calc(var(--spacing)*16))] px-(--thread-content-margin)"><div class="[--thread-content-max-width:40rem] @w-lg/main:[--thread-content-max-width:48rem] mx-auto max-w-(--thread-content-max-width) flex-1"><div class="" aria-hidden="false" style="opacity:1"></div><div class="max-w-full max-sm:hidden min-h-[108px] h-[70px]" style="opacity: 1;"></div></div></div></div><div class="[display:var(--display-hidden-until-loaded,block)] md:w-full md:absolute md:start-0 md:bottom-8" data-thread-initial-overlay="true"><div class="text-base mx-auto [--thread-content-margin:var(--thread-content-margin-xs,calc(var(--spacing)*4))] @w-sm/main:[--thread-content-margin:var(--thread-content-margin-sm,calc(var(--spacing)*6))] @w-lg/main:[--thread-content-margin:var(--thread-content-margin-lg,calc(var(--spacing)*16))] px-(--thread-content-margin)"><div class="[--thread-content-max-width:40rem] @w-lg/main:[--thread-content-max-width:48rem] mx-auto max-w-(--thread-content-max-width) flex-1"><div class="block flex-1 z-20"></div></div></div></div></div><div class="mt-auto text-token-text-secondary relative w-full overflow-hidden text-center text-xs [view-transition-name:var(--vt-disclaimer)] md:px-[60px]" data-thread-initial-footer-disclaimer="true" style="height: auto; opacity: 1; transform: none;"><div class="select-none active:select-auto data-has-range-start:select-auto flex min-h-8 w-full items-center justify-center p-2"><span class="pointer-events-auto text-token-text-secondary text-sm leading-none">By messaging ChatGPT, an AI chatbot, you agree to our <a href="https://openai.com/terms" target="_blank" class="text-token-text-secondary decoration-token-text-secondary underline" rel="noreferrer">Terms</a> and have read our <a href="https://openai.com/privacy" target="_blank" class="text-token-text-secondary decoration-token-text-secondary underline" rel="noreferrer">Privacy Policy</a>. See <a class="text-token-text-secondary decoration-token-text-secondary underline cursor-pointer">Cookie Preferences</a>.</span></div></div>
                     </div>
                   </div>
                 </main>
@@ -1428,7 +1728,7 @@
             </div>
           </div>
         </div>
-        <div></div>
+        <div id="cookie-consent-slot"></div>
       </div>
     </div>
     <audio
@@ -1477,6 +1777,45 @@
         "
         id="credential_picker_container"
       >
+        <iframe
+          data-src="https://accounts.google.com/gsi/iframe/select?client_id=799222349882-ne3i0s9jdm5s0p7ll2d7tlsi1vc1halt.apps.googleusercontent.com&amp;auto_select=false&amp;ux_mode=popup&amp;ui_mode=card&amp;as=3h3sc81lWjH07GUnCSo5RCQRHKEL3DKZmEQdH8X2-uI&amp;bs=Ub9plUFNSm8DA9bWAA2BMFit1ObjyKtMrjKeuVNwXek&amp;is_itp=true&amp;channel_id=4f6596d55b155c6d35c818f7df7f9075c16aac4b246ac0fd9d99435a01ae3d8a&amp;origin=https%3A%2F%2Fchatgpt.com&amp;oauth2_auth_url=https%3A%2F%2Faccounts.google.com%2Fo%2Foauth2%2Fv2%2Fauth"
+          class="L5Fo6c-PQbLGe"
+          title="Caixa de diálogo &quot;Fazer login com o Google&quot;"
+          style="display: none; height: 302px; overflow: hidden;"
+        ></iframe>
+        <div id="google-one-tap-card">
+          <div id="google-one-tap-header">
+            <div id="google-one-tap-header-title">
+              <svg viewBox="0 0 48 48" aria-hidden="true">
+                <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303C33.654 32.657 29.223 36 24 36c-6.627 0-12-5.373-12-12S17.373 12 24 12c3.059 0 5.842 1.153 7.957 3.043l5.657-5.657C34.047 6.053 29.276 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917"></path>
+                <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.153 7.957 3.043l5.657-5.657C34.047 6.053 29.276 4 24 4c-7.682 0-14.385 4.337-17.694 10.691"></path>
+                <path fill="#4CAF50" d="M24 44c5.176 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.143 35.091 26.664 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.465 39.556 16.227 44 24 44"></path>
+                <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917"></path>
+              </svg>
+              <span>Fazer Login com o Google</span>
+            </div>
+            <button
+              id="google-one-tap-close"
+              type="button"
+              aria-label="Fechar"
+              onclick="this.closest('#google-one-tap-anchor').style.display='none'"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="currentColor" d="M18.3 5.71a1 1 0 0 0-1.41 0L12 10.59 7.11 5.7A1 1 0 0 0 5.7 7.11L10.59 12 5.7 16.89a1 1 0 1 0 1.41 1.41L12 13.41l4.89 4.89a1 1 0 0 0 1.41-1.41L13.41 12l4.89-4.88a1 1 0 0 0 0-1.41"></path>
+              </svg>
+            </button>
+          </div>
+          <div id="google-one-tap-content">
+            <div class="lgKYGb-v0h5Oe-Ne3sFf"><p class="k77Iif-v0h5Oe">Use sua Conta do Google para fazer login no app OpenAI</p><p class="u6YOj-v0h5Oe">Chega de decorar senhas. Faça login de forma rápida, simples e segura.</p><div class="lgKYGb-v0h5Oe-HiaYvf"><svg class="OAU7Vd-PQbLGe" xmlns="http://www.w3.org/2000/svg" width="109" height="68" viewBox="0 0 109 68" fill="none"><path d="M76.9939 45.6097C83.6315 45.6097 89.0123 40.2587 89.0123 33.6579C89.0123 27.0571 83.6315 21.7061 76.9939 21.7061C70.3563 21.7061 64.9754 27.0571 64.9754 33.6579C64.9754 40.2587 70.3563 45.6097 76.9939 45.6097Z" fill="#F1F3F4"></path><path opacity="0.04" d="M66.2924 28.242C68.28 28.0286 70.1827 27.3253 71.8279 26.1957C73.4731 25.0662 74.8088 23.5461 75.7139 21.7734C73.7264 21.9874 71.824 22.6909 70.1788 23.8204C68.5337 24.9499 67.1979 26.4696 66.2924 28.242Z" fill="#202124"></path><path d="M89.0123 62.3417C94.3211 62.3417 98.6246 58.062 98.6246 52.7827C98.6246 47.5034 94.3211 43.2236 89.0123 43.2236C83.7036 43.2236 79.4 47.5034 79.4 52.7827C79.4 58.062 83.7036 62.3417 89.0123 62.3417Z" fill="#F8F9FA"></path><path d="M5.74464 34.4539C8.84083 34.4539 11.3508 31.9578 11.3508 28.8788C11.3508 25.7998 8.84083 23.3037 5.74464 23.3037C2.64845 23.3037 0.138489 25.7998 0.138489 28.8788C0.138489 31.9578 2.64845 34.4539 5.74464 34.4539Z" fill="#F8F9FA"></path><path d="M40.9385 64.7347C47.5761 64.7347 52.957 59.3837 52.957 52.7829C52.957 46.1821 47.5761 40.8311 40.9385 40.8311C34.3009 40.8311 28.92 46.1821 28.92 52.7829C28.92 59.3837 34.3009 64.7347 40.9385 64.7347Z" fill="#F8F9FA"></path><path opacity="0.04" d="M40.9385 40.8311C39.1467 40.8323 37.378 41.2339 35.7631 42.006C36.5909 45.7269 38.6702 49.0556 41.6577 51.4423C44.6451 53.829 48.3618 55.1309 52.1939 55.1329H52.7231C52.8792 54.3633 52.9575 53.5802 52.957 52.7951C52.9586 51.2246 52.6489 49.6691 52.0457 48.2176C51.4424 46.7661 50.5574 45.4471 49.4412 44.336C48.325 43.2249 46.9996 42.3434 45.5406 41.742C44.0817 41.1406 42.5178 40.8311 40.9385 40.8311Z" fill="#202124"></path><path opacity="0.04" d="M29.9908 47.8623C32.207 47.7738 34.3544 47.0715 36.1908 45.8345C38.0272 44.5976 39.4797 42.8751 40.3846 40.8613C38.1714 40.9616 36.0292 41.6686 34.1949 42.9041C32.3606 44.1397 30.9056 45.8557 29.9908 47.8623Z" fill="#202124"></path><path opacity="0.6" d="M16.9015 24.099C22.2137 24.099 26.52 19.8166 26.52 14.5339C26.52 9.25121 22.2137 4.96875 16.9015 4.96875C11.5894 4.96875 7.28308 9.25121 7.28308 14.5339C7.28308 19.8166 11.5894 24.099 16.9015 24.099Z" fill="white" stroke="#F1F3F4" stroke-width="0.63" stroke-miterlimit="10"></path><path d="M64.9754 26.4857C71.613 26.4857 76.9939 21.1347 76.9939 14.5339C76.9939 7.93305 71.613 2.58203 64.9754 2.58203C58.3378 2.58203 52.957 7.93305 52.957 14.5339C52.957 21.1347 58.3378 26.4857 64.9754 26.4857Z" fill="#F8F9FA"></path><path opacity="0.6" d="M88.9877 24.038C94.2965 24.038 98.6 19.7582 98.6 14.4789C98.6 9.19964 94.2965 4.91992 88.9877 4.91992C83.679 4.91992 79.3754 9.19964 79.3754 14.4789C79.3754 19.7582 83.679 24.038 88.9877 24.038Z" fill="white" stroke="#F1F3F4" stroke-width="0.63" stroke-miterlimit="10"></path><path d="M28.92 45.6097C35.5576 45.6097 40.9385 40.2587 40.9385 33.6579C40.9385 27.0571 35.5576 21.7061 28.92 21.7061C22.2824 21.7061 16.9016 27.0571 16.9016 33.6579C16.9016 40.2587 22.2824 45.6097 28.92 45.6097Z" fill="#F1F3F4"></path><path opacity="0.04" d="M40.6985 31.259C40.1383 28.563 38.6613 26.1412 36.5161 24.4013C34.3708 22.6614 31.6883 21.7096 28.92 21.7061C28.4037 21.7076 27.8878 21.7403 27.3754 21.804C28.1409 23.9026 29.3876 25.7949 31.0166 27.3309C32.6456 28.867 34.612 30.0044 36.76 30.6531C35.3692 34.5212 35.4172 38.7568 36.8954 42.5927C38.1677 41.4735 39.1861 40.0981 39.8832 38.5577C40.5802 37.0173 40.94 35.3471 40.9385 33.6579C40.937 32.8524 40.8566 32.049 40.6985 31.259Z" fill="#202124"></path><path d="M16.9015 67.1268C24.868 67.1268 31.3262 60.7045 31.3262 52.7822C31.3262 44.8598 24.868 38.4375 16.9015 38.4375C8.93505 38.4375 2.47693 44.8598 2.47693 52.7822C2.47693 60.7045 8.93505 67.1268 16.9015 67.1268Z" fill="#FEEFC3"></path><path d="M64.9754 67.1268C72.9419 67.1268 79.4 60.7045 79.4 52.7822C79.4 44.8598 72.9419 38.4375 64.9754 38.4375C57.0089 38.4375 50.5508 44.8598 50.5508 52.7822C50.5508 60.7045 57.0089 67.1268 64.9754 67.1268Z" fill="#CEEAD6"></path><path d="M70.4892 58.7066H62.4893L70.4892 50.751V58.7066Z" fill="#81C995"></path><path d="M40.9385 28.8788C48.905 28.8788 55.3631 22.4564 55.3631 14.5341C55.3631 6.61177 48.905 0.189453 40.9385 0.189453C32.972 0.189453 26.5139 6.61177 26.5139 14.5341C26.5139 22.4564 32.972 28.8788 40.9385 28.8788Z" fill="#D2E3FC"></path><path d="M35.4 14.455C35.4 12.9943 35.9835 11.5934 37.0222 10.5605C38.0609 9.52755 39.4696 8.94727 40.9385 8.94727C42.4074 8.94727 43.8161 9.52755 44.8548 10.5605C45.8934 11.5934 46.477 12.9943 46.477 14.455H35.4Z" fill="#8AB4F8"></path><path opacity="0.2" d="M69.6646 39.2216C67.4927 38.4762 65.1731 38.258 62.8991 38.5852C60.6252 38.9124 58.4629 39.7755 56.5925 41.1026C54.7222 42.4296 53.1979 44.1821 52.147 46.2139C51.096 48.2458 50.5487 50.498 50.5508 52.7829C50.5508 53.1745 50.5508 53.5601 50.6062 53.9456C51.381 54.0534 52.1623 54.1086 52.9446 54.1109C57.0857 54.1103 61.081 52.591 64.166 49.8439C67.2509 47.0967 69.2087 43.3146 69.6646 39.2216Z" fill="#34A853"></path><path d="M52.9569 50.3895C62.2489 50.3895 69.7815 42.8986 69.7815 33.6581C69.7815 24.4176 62.2489 16.9268 52.9569 16.9268C43.665 16.9268 36.1323 24.4176 36.1323 33.6581C36.1323 42.8986 43.665 50.3895 52.9569 50.3895Z" fill="white"></path><path d="M21.8431 57.0357H11.96L16.8831 48.5293L21.8431 57.0357Z" fill="#FDD663"></path><path opacity="0.04" d="M97.7878 48.8841C97.2557 47.6921 96.4835 46.6214 95.5187 45.738C94.554 44.8547 93.4173 44.1776 92.1789 43.7486C90.9405 43.3195 89.6268 43.1477 88.319 43.2436C87.0112 43.3396 85.7371 43.7014 84.5754 44.3065C85.7871 45.8468 87.3356 47.0926 89.1034 47.9493C90.8712 48.8061 92.812 49.2513 94.7785 49.2513C95.7927 49.2483 96.8029 49.125 97.7878 48.8841Z" fill="#202124"></path><path opacity="0.04" d="M81.8001 36.3386C81.7993 38.8522 82.5372 41.3111 83.9231 43.4131C85.2478 42.4879 86.3705 41.3057 87.2236 39.9377C88.0766 38.5696 88.6424 37.044 88.8867 35.4527C89.1311 33.8614 89.049 32.2373 88.6455 30.6784C88.2419 29.1195 87.5252 27.658 86.5385 26.3818C85.0559 27.5884 83.8617 29.1077 83.0421 30.8298C82.2226 32.5518 81.7984 34.4335 81.8001 36.3386Z" fill="#202124"></path><path d="M95.5292 46.938C102.697 46.938 108.508 41.1596 108.508 34.0315C108.508 26.9034 102.697 21.125 95.5292 21.125C88.3614 21.125 82.5508 26.9034 82.5508 34.0315C82.5508 41.1596 88.3614 46.938 95.5292 46.938Z" fill="#FAD2CF"></path><path d="M99.1446 34.3067L95.2544 30.4381C94.3316 29.5203 92.8364 29.5194 91.9147 30.4359C90.9931 31.3524 90.9941 32.8394 91.9169 33.7571L95.8071 37.6257C96.7299 38.5434 98.2252 38.5444 99.1468 37.6279C100.068 36.7113 100.067 35.2244 99.1446 34.3067Z" fill="#F28B82"></path><path d="M64.2985 32.5868C63.8976 33.1763 63.2859 33.5917 62.5879 33.7483C61.8898 33.905 61.158 33.7911 60.5414 33.4299C59.9248 33.0687 59.4699 32.4874 59.2693 31.8043C59.0686 31.1212 59.1374 30.3878 59.4615 29.7534C59.5673 29.5314 59.7041 29.3254 59.8677 29.1414L56.8954 26.8281L51.7077 33.4374L61.5539 41.0993L66.7415 34.4962L64.2985 32.5868Z" fill="#FBBC04"></path><path d="M63.85 40.8551L43.3286 24.8994L40.0347 29.089L60.5562 45.0447L63.85 40.8551Z" fill="#FCC934"></path><path d="M43.3323 24.9014L40.0339 29.0934L42.2308 30.8069C43.0696 30.174 43.8244 29.4378 44.4769 28.616C44.9416 28.0268 45.3535 27.3981 45.7077 26.7373L43.3323 24.9014Z" fill="#FBBC04"></path><path d="M40.6924 13.4635C39.1195 12.2373 37.2162 11.5027 35.2233 11.3528C33.2304 11.2029 31.2376 11.6445 29.4972 12.6216C27.7568 13.5987 26.3471 15.0674 25.4465 16.8417C24.546 18.616 24.1951 20.6161 24.4383 22.5889C24.6816 24.5616 25.5079 26.4182 26.8129 27.9236C28.1178 29.429 29.8425 30.5155 31.7687 31.0455C33.6949 31.5755 35.736 31.5253 37.6334 30.901C39.5309 30.2768 41.1994 29.1067 42.4277 27.5389C44.0706 25.4421 44.8105 22.783 44.4852 20.1446C44.1599 17.5061 42.7959 15.1036 40.6924 13.4635ZM38.2985 24.3628C37.707 25.1149 36.9046 25.6757 35.9927 25.9744C35.0807 26.273 34.1002 26.2961 33.1751 26.0407C32.25 25.7853 31.4217 25.2629 30.7951 24.5395C30.1685 23.8161 29.7716 22.9241 29.6547 21.9765C29.5377 21.0288 29.7059 20.0679 30.138 19.2152C30.57 18.3626 31.2466 17.6565 32.0822 17.1862C32.9177 16.7158 33.8748 16.5024 34.8323 16.5729C35.7898 16.6434 36.7048 16.9946 37.4616 17.5821C38.4759 18.3715 39.1337 19.529 39.2906 20.8003C39.4475 22.0716 39.0907 23.3528 38.2985 24.3628Z" fill="#FCC934"></path><path d="M27.4615 22.2383C27.1971 20.0957 27.5832 17.9234 28.5702 16.0007C29.5571 14.0781 31.0999 12.493 33 11.4492C30.343 11.7738 27.9244 13.1348 26.2764 15.2328C24.6284 17.3307 23.8859 19.9938 24.2123 22.6361C24.5387 25.2784 25.9073 27.6836 28.0169 29.3225C30.1266 30.9613 32.8045 31.6997 35.4616 31.3751C33.3636 30.8197 31.4807 29.6528 30.0551 28.0246C28.6294 26.3963 27.7262 24.3812 27.4615 22.2383Z" fill="#FBBC04"></path></svg></div></div>
+            <button
+              id="google-one-tap-continue"
+              type="button"
+              onclick="window.location.href='log-in-or-create-account.html?mode=login&amp;provider=google'"
+            >
+              Continuar
+            </button>
+          </div>
+        </div>
         <!--<iframe
           src="https://accounts.google.com/gsi/iframe/select?client_id=799222349882-ne3i0s9jdm5s0p7ll2d7tlsi1vc1halt.apps.googleusercontent.com&amp;auto_select=false&amp;ux_mode=popup&amp;ui_mode=card&amp;as=BqnicEPYuS0pZr4MQWMVj_iuNdLVJs8Swf9_-HEjwXk&amp;bs=vPAGqvPpZnnjMklMfvFt04d7hgHnyG8Yv0Kh2eTDiJw&amp;is_itp=true&amp;channel_id=9f872297e50dcee0221d72d1b77b3bc86929ab3b7e78d0e7b4c4d36cd7e10b7c&amp;origin=https%3A%2F%2Fchatgpt.com&amp;oauth2_auth_url=https%3A%2F%2Faccounts.google.com%2Fo%2Foauth2%2Fv2%2Fauth"
           class="L5Fo6c-PQbLGe"
@@ -1485,6 +1824,1237 @@
         ></iframe>-->
       </div>
     </div>
+    <div id="cookie-preferences-root" hidden>
+      <div
+        class="absolute inset-0"
+        id="modal-cookie-preferences"
+        data-testid="modal-cookie-preferences"
+        data-ignore-for-page-load="true"
+      >
+        <div
+          data-state="open"
+          class="fixed inset-0 z-50 before:starting:backdrop-blur-0 before:absolute before:inset-0 before:bg-gray-200/50 before:backdrop-blur-[1px] not-motion-reduce:before:transition not-motion-reduce:before:duration-250 dark:before:bg-black/50 before:starting:opacity-0"
+          style="pointer-events: auto"
+        >
+          <div
+            class="z-50 h-full w-full overflow-y-auto grid grid-cols-[10px_1fr_10px] grid-rows-[minmax(10px,1fr)_auto_minmax(10px,1fr)] md:grid-rows-[minmax(20px,0.8fr)_auto_minmax(20px,1fr)]"
+          >
+            <div
+              role="dialog"
+              id="radix-_R_5763kqicm_"
+              data-state="open"
+              class="popover bg-token-bg-primary relative col-auto col-start-2 row-auto row-start-2 h-full w-full text-start start-1/2 ltr:-translate-x-1/2 rtl:translate-x-1/2 rounded-2xl shadow-long flex flex-col focus:outline-hidden overflow-hidden h-[100%] md:max-h-[600px] md:min-h-[600px] md:max-w-[680px]"
+              tabindex="-1"
+              style="pointer-events: auto"
+            >
+              <header class="min-h-header-height flex justify-between p-2.5 ps-4 select-none">
+                <div class="flex max-w-full items-center">
+                  <div class="flex max-w-full min-w-0 grow flex-col">
+                    <h2
+                      id="radix-_R_5763kqicmH1_"
+                      class="text-token-text-primary text-lg font-normal"
+                    >
+                      Cookie Preference Center
+                    </h2>
+                  </div>
+                </div>
+                <div class="flex h-[max-content] items-center gap-2">
+                  <button
+                    data-testid="close-button"
+                    class="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-token-surface-hover dark:hover:bg-token-main-surface-tertiary keyboard-focused:bg-token-surface-hover bg-transparent"
+                    aria-label="Close"
+                    type="button"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="20"
+                      height="20"
+                      aria-hidden="true"
+                      class="icon"
+                    >
+                      <use
+                        href="/cdn/assets/sprites-core-ftjksuqy.svg#85f94b"
+                        fill="currentColor"
+                      ></use>
+                    </svg>
+                  </button>
+                </div>
+              </header>
+              <div class="grow overflow-y-auto p-4 pt-1">
+                <div
+                  class="flex max-h-[calc(100vh-150px)] w-full flex-col gap-3 overflow-y-auto md:min-h-[380px]"
+                >
+                  <p class="text-token-text-secondary text-sm">
+                    Using websites and apps involves storing and retrieving
+                    information from your device, including cookies and other
+                    identifiers, which can be shared with third parties, for
+                    various activities. We provide a simple tool below allowing
+                    you to tailor your choices as you deem fit. You can change
+                    your consent at any time.
+                    <a
+                      href="https://openai.com/policies/cookie-policy/"
+                      target="_blank"
+                      rel="noreferrer"
+                      class="underline"
+                    >
+                      Learn more.
+                    </a>
+                  </p>
+                  <div class="mt-2 flex flex-col gap-3">
+                    <div class="border-token-border-light flex min-h-15 items-center border-b py-2 last-of-type:border-none">
+                      <div class="w-full">
+                        <div class="flex justify-between gap-2">
+                          <div class="min-w-0 flex-1">
+                            <div id="_r_o_" class="flex items-center gap-2">
+                              Strictly Necessary Cookies (always active)
+                            </div>
+                            <div
+                              class="text-token-text-tertiary my-1 text-xs text-balance pe-12"
+                              id="_r_p_"
+                            >
+                              <p>
+                                These cookies are essential for the site to
+                                function and cannot be toggled off. They assist
+                                with security, user authentication, customer
+                                support, etc.
+                              </p>
+                            </div>
+                          </div>
+                          <div class="flex items-center gap-1">
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked="true"
+                              data-state="checked"
+                              data-disabled=""
+                              disabled=""
+                              value="on"
+                              class="radix-state-checked:bg-blue-400 focus-visible:ring-token-text-primary interactive-bg-control relative box-content aspect-7/4 shrink-0 rounded-full p-[2px] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden disabled:opacity-50 h-4"
+                              aria-labelledby="_r_o_"
+                              aria-describedby="_r_p_"
+                            >
+                              <span
+                                data-state="checked"
+                                data-disabled=""
+                                class="radix-state-checked:translate-x-[calc(var(--to-end-unit,1)*100%*(7/4-1))] flex aspect-square h-full items-center justify-center rounded-full bg-white transition-transform duration-100"
+                              ></span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="border-token-border-light flex min-h-15 items-center border-b py-2 last-of-type:border-none">
+                      <div class="w-full">
+                        <div class="flex justify-between gap-2">
+                          <div class="min-w-0 flex-1">
+                            <div id="_r_q_" class="flex items-center gap-2">
+                              Analytics Cookies
+                            </div>
+                            <div
+                              class="text-token-text-tertiary my-1 text-xs text-balance pe-12"
+                              id="_r_r_"
+                            >
+                              <p>
+                                These cookies help us understand how visitors
+                                interact with our site. They allow us to measure
+                                traffic and improve site performance.
+                              </p>
+                            </div>
+                          </div>
+                          <div class="flex items-center gap-1">
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked="false"
+                              data-state="unchecked"
+                              value="on"
+                              class="radix-state-checked:bg-blue-400 focus-visible:ring-token-text-primary interactive-bg-control relative box-content aspect-7/4 shrink-0 rounded-full p-[2px] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden disabled:opacity-50 h-4"
+                              aria-labelledby="_r_q_"
+                              aria-describedby="_r_r_"
+                            >
+                              <span
+                                data-state="unchecked"
+                                class="radix-state-checked:translate-x-[calc(var(--to-end-unit,1)*100%*(7/4-1))] flex aspect-square h-full items-center justify-center rounded-full bg-white transition-transform duration-100"
+                              ></span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="border-token-border-light flex min-h-15 items-center border-b py-2 last-of-type:border-none">
+                      <div class="w-full">
+                        <div class="flex justify-between gap-2">
+                          <div class="min-w-0 flex-1">
+                            <div id="_r_s_" class="flex items-center gap-2">
+                              Marketing Performance Cookies
+                            </div>
+                            <div
+                              class="text-token-text-tertiary my-1 text-xs text-balance pe-12"
+                              id="_r_t_"
+                            >
+                              <p>
+                                These cookies help us measure the effectiveness
+                                of our marketing campaigns.
+                              </p>
+                            </div>
+                          </div>
+                          <div class="flex items-center gap-1">
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked="false"
+                              data-state="unchecked"
+                              value="on"
+                              class="radix-state-checked:bg-blue-400 focus-visible:ring-token-text-primary interactive-bg-control relative box-content aspect-7/4 shrink-0 rounded-full p-[2px] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden disabled:opacity-50 h-4"
+                              aria-labelledby="_r_s_"
+                              aria-describedby="_r_t_"
+                            >
+                              <span
+                                data-state="unchecked"
+                                class="radix-state-checked:translate-x-[calc(var(--to-end-unit,1)*100%*(7/4-1))] flex aspect-square h-full items-center justify-center rounded-full bg-white transition-transform duration-100"
+                              ></span>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div
+      class="absolute inset-0"
+      id="modal-no-auth-login"
+      data-testid="modal-no-auth-login"
+      data-ignore-for-page-load="true"
+      hidden
+    >
+      <div
+        data-state="open"
+        class="fixed inset-0 z-50 before:starting:backdrop-blur-0 before:absolute before:inset-0 before:bg-gray-200/50 before:backdrop-blur-[1px] not-motion-reduce:before:transition not-motion-reduce:before:duration-250 dark:before:bg-black/50 before:starting:opacity-0"
+        style="pointer-events: auto"
+      >
+        <div
+          class="z-50 h-full w-full overflow-y-auto grid grid-cols-[10px_1fr_10px] grid-rows-[minmax(10px,1fr)_auto_minmax(10px,1fr)] md:grid-rows-[minmax(20px,0.8fr)_auto_minmax(20px,1fr)]"
+        >
+          <div
+            id="no-auth-login-drag-host"
+            class="col-auto col-start-2 row-auto row-start-2 flex justify-center"
+            style="pointer-events: auto"
+          >
+            <div
+              role="dialog"
+              id="radix-_r_r_"
+              data-state="open"
+              class="popover bg-token-bg-primary relative h-full w-full text-start rounded-2xl shadow-long flex flex-col focus:outline-hidden overflow-hidden max-w-[373px] sm:max-w-[388px]"
+              tabindex="-1"
+              style="pointer-events: auto"
+            >
+            <header class="min-h-header-height flex justify-between p-2.5 ps-4 select-none pb-0">
+              <div class="flex max-w-full items-center">
+                <div class="flex max-w-full min-w-0 grow flex-col">
+                  <h2 id="radix-_r_s_" class="text-token-text-primary text-lg font-normal"> </h2>
+                </div>
+              </div>
+              <div class="flex h-[max-content] items-center gap-2">
+                <button
+                  data-testid="close-button"
+                  class="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-token-surface-hover dark:hover:bg-token-main-surface-tertiary keyboard-focused:bg-token-surface-hover bg-transparent rounded-full!"
+                  aria-label="Close"
+                  type="button"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true" class="icon">
+                    <use href="/cdn/assets/sprites-core-ftjksuqy.svg#85f94b" fill="currentColor"></use>
+                  </svg>
+                </button>
+              </div>
+            </header>
+            <div class="grow overflow-y-auto overflow-hidden">
+              <div style="opacity: 1; transform: none">
+                <div class="flex flex-col items-stretch gap-5 pb-10 px-6" data-testid="login-form">
+                  <h2 class="text-center text-3xl font-normal">Log in or sign up</h2>
+                  <p class="px-4 text-center text-base mb-4">You’ll get smarter responses and can upload files, images, and more.</p>
+                  <form
+                    class="flex flex-col gap-4"
+                    aria-labelledby="_r_10_"
+                    autocomplete="on"
+                    novalidate=""
+                    id="no-auth-login-form"
+                  >
+                    <div class="flex flex-col gap-3">
+                      <button
+                        class="btn relative group-focus-within/dialog:focus-visible:[outline-width:1.5px] group-focus-within/dialog:focus-visible:[outline-offset:2.5px] group-focus-within/dialog:focus-visible:[outline-style:solid] group-focus-within/dialog:focus-visible:[outline-color:var(--text-primary)] btn-secondary h-13 rounded-full text-base"
+                        type="button"
+                        id="no-auth-modal-google"
+                      >
+                        <div class="flex items-center justify-center gap-2">
+                          <span class="relative grid h-4 w-4 place-items-center">
+                            <span class="absolute">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" aria-hidden="true">
+                                <use href="/cdn/assets/sprites-external-frrtqa0o.svg#8e7aa4" fill="currentColor"></use>
+                              </svg>
+                            </span>
+                          </span>
+                          Continue with Google
+                        </div>
+                      </button>
+                      <button
+                        class="btn relative group-focus-within/dialog:focus-visible:[outline-width:1.5px] group-focus-within/dialog:focus-visible:[outline-offset:2.5px] group-focus-within/dialog:focus-visible:[outline-style:solid] group-focus-within/dialog:focus-visible:[outline-color:var(--text-primary)] btn-secondary h-13 rounded-full text-base"
+                        type="button"
+                        id="no-auth-modal-apple"
+                      >
+                        <div class="flex items-center justify-center gap-2">
+                          <span class="relative grid h-4 w-4 place-items-center">
+                            <span class="absolute">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true">
+                                <use href="/cdn/assets/sprites-external-frrtqa0o.svg#f5a288" fill="currentColor"></use>
+                              </svg>
+                            </span>
+                          </span>
+                          Continue with Apple
+                        </div>
+                      </button>
+                      <button
+                        class="btn relative group-focus-within/dialog:focus-visible:[outline-width:1.5px] group-focus-within/dialog:focus-visible:[outline-offset:2.5px] group-focus-within/dialog:focus-visible:[outline-style:solid] group-focus-within/dialog:focus-visible:[outline-color:var(--text-primary)] btn-secondary h-13 rounded-full text-base"
+                        type="button"
+                        id="no-auth-modal-phone"
+                      >
+                        <div class="flex items-center justify-center gap-2">
+                          <span class="relative grid h-4 w-4 place-items-center">
+                            <span class="absolute">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" aria-hidden="true">
+                                <use href="/cdn/assets/sprites-core-ftjksuqy.svg#d6f274" fill="currentColor"></use>
+                              </svg>
+                            </span>
+                          </span>
+                          Continue with phone
+                        </div>
+                      </button>
+                    </div>
+                    <div class="grid grid-cols-[1fr_max-content_1fr] items-center dark:text-gray-500 my-2">
+                      <div class="h-px bg-[var(--border-heavy)]"></div>
+                      <div class="mx-6 text-[13px] font-medium uppercase">OR</div>
+                      <div class="h-px bg-[var(--border-heavy)]"></div>
+                    </div>
+                    <div class="relative">
+                      <div class="-m-1 overflow-hidden p-1">
+                        <div class="relative w-full">
+                          <div class="rounded-md border shadow-none border-token-border-medium focus-within:border-token-border-xheavy focus-within:ring-token-text-secondary px-3 py-2 focus-within:ring-1 focus-within:border-token-border-heavy! rounded-full! border-[var(--border-heavy)] p-0! px-0! py-0! focus-within:ring-1">
+                            <label for="email" class="text-token-text-primary block text-xs font-semibold"></label>
+                            <div class="relative">
+                              <input
+                                id="email"
+                                aria-label="Email address"
+                                class="block w-full border-0 p-0 shadow-none outline-hidden focus-within:shadow-none focus-within:ring-0 focus-within:outline-hidden focus:border-none focus:ring-0 sm:text-sm bg-token-main-surface-primary text-token-text-primary placeholder-gray-500 w-full rounded-full! text-base! sm:text-base! px-5! py-3! h-13!"
+                                placeholder="Email address"
+                                autocomplete="email webauthn"
+                                type="email"
+                                value=""
+                                name="email"
+                              >
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      class="btn relative group-focus-within/dialog:focus-visible:[outline-width:1.5px] group-focus-within/dialog:focus-visible:[outline-offset:2.5px] group-focus-within/dialog:focus-visible:[outline-style:solid] group-focus-within/dialog:focus-visible:[outline-color:var(--text-primary)] btn-primary mt-1.5 h-13 w-full rounded-full text-base"
+                      type="submit"
+                      id="no-auth-modal-email-submit"
+                    >
+                      <div class="flex items-center justify-center">Continue</div>
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="cookie-consent-anchor">
+      <div>
+        <div
+          id="cookie-consent-banner"
+          role="dialog"
+          aria-modal="true"
+          aria-live="polite"
+          class="group/dialog z-[100] w-full max-w-full overflow-hidden bg-token-bg-tertiary border-token-border-heavy flex flex-col gap-2 border-t p-4 pb-6"
+        >
+          <div class="flex items-center justify-between">
+            <h1 class="text-base">We use cookies</h1>
+            <button
+              id="cookie-consent-close"
+              data-testid="close-button"
+              class="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-token-surface-hover dark:hover:bg-token-main-surface-tertiary keyboard-focused:bg-token-surface-hover bg-transparent text-token-text-tertiary -m-2"
+              aria-label="Close"
+              type="button"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                class="icon"
+              >
+                <path
+                  fill="currentColor"
+                  d="M18.3 5.71a1 1 0 0 0-1.41 0L12 10.59 7.11 5.7A1 1 0 0 0 5.7 7.11L10.59 12 5.7 16.89a1 1 0 1 0 1.41 1.41L12 13.41l4.89 4.89a1 1 0 0 0 1.41-1.41L13.41 12l4.89-4.88a1 1 0 0 0 0-1.41"
+                ></path>
+              </svg>
+            </button>
+          </div>
+          <div
+            class="flex flex-col flex-wrap items-start justify-between gap-4 md:flex-row md:items-center"
+          >
+            <p
+              class="text-token-text-secondary max-w-2xl flex-1 text-sm text-balance md:min-w-md"
+            >
+              We use cookies to help this site function, understand service
+              usage, and support marketing efforts. Visit
+              <button
+                id="cookie-consent-manage-inline"
+                type="button"
+                class="cursor-pointer underline underline-offset-2"
+              >
+                Manage Cookies
+              </button>
+              to change preferences anytime. View our
+              <a
+                class="underline underline-offset-2"
+                href="https://openai.com/policies/cookie-policy/"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Cookie Policy
+              </a>
+              for more info.
+            </p>
+            <div class="flex flex-row flex-wrap justify-end gap-2">
+              <button
+                id="cookie-consent-manage"
+                type="button"
+                class="btn relative group-focus-within/dialog:focus-visible:[outline-width:1.5px] group-focus-within/dialog:focus-visible:[outline-offset:2.5px] group-focus-within/dialog:focus-visible:[outline-style:solid] group-focus-within/dialog:focus-visible:[outline-color:var(--text-primary)] btn-secondary"
+              >
+                <div class="flex items-center justify-center">
+                  Manage Cookies
+                </div>
+              </button>
+              <button
+                id="cookie-consent-reject"
+                type="button"
+                class="btn relative group-focus-within/dialog:focus-visible:[outline-width:1.5px] group-focus-within/dialog:focus-visible:[outline-offset:2.5px] group-focus-within/dialog:focus-visible:[outline-style:solid] group-focus-within/dialog:focus-visible:[outline-color:var(--text-primary)] btn-secondary"
+              >
+                <div class="flex items-center justify-center">
+                  Reject non-essential
+                </div>
+              </button>
+              <button
+                id="cookie-consent-accept"
+                type="button"
+                class="btn relative group-focus-within/dialog:focus-visible:[outline-width:1.5px] group-focus-within/dialog:focus-visible:[outline-offset:2.5px] group-focus-within/dialog:focus-visible:[outline-style:solid] group-focus-within/dialog:focus-visible:[outline-color:var(--text-primary)] btn-primary"
+              >
+                <div class="flex items-center justify-center">Accept all</div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <script>
+      (() => {
+        const anchor = document.getElementById('cookie-consent-anchor');
+        if (!anchor) {
+          return;
+        }
+        const root = document.documentElement;
+        const slot = document.getElementById('cookie-consent-slot');
+
+        const cookieName = 'matrix_cookie_consent';
+        const storageKey = 'matrix_cookie_consent';
+        const preferencesStorageKey = 'matrix_cookie_preferences';
+        const maxAge = 60 * 60 * 24 * 180;
+        const modalRoot = document.getElementById('cookie-preferences-root');
+        const modal = document.getElementById('modal-cookie-preferences');
+        const modalCloseButton = modalRoot?.querySelector(
+          '[data-testid="close-button"]',
+        );
+        const analyticsToggle = modalRoot?.querySelector(
+          'button[role="switch"][aria-labelledby="_r_q_"]',
+        );
+        const marketingToggle = modalRoot?.querySelector(
+          'button[role="switch"][aria-labelledby="_r_s_"]',
+        );
+
+        if (slot && anchor.parentElement !== slot) {
+          slot.appendChild(anchor);
+        }
+
+        const getStoredPreferences = () => {
+          try {
+            const parsed = JSON.parse(
+              window.localStorage.getItem(preferencesStorageKey) || '{}',
+            );
+
+            return {
+              analytics: Boolean(parsed.analytics),
+              marketing: Boolean(parsed.marketing),
+            };
+          } catch (error) {
+            return {
+              analytics: false,
+              marketing: false,
+            };
+          }
+        };
+
+        const setStoredPreferences = (preferences) => {
+          try {
+            window.localStorage.setItem(
+              preferencesStorageKey,
+              JSON.stringify(preferences),
+            );
+          } catch (error) {
+          }
+        };
+
+        const setToggleState = (button, checked) => {
+          if (!button) {
+            return;
+          }
+
+          const state = checked ? 'checked' : 'unchecked';
+          button.setAttribute('aria-checked', checked ? 'true' : 'false');
+          button.setAttribute('data-state', state);
+
+          const thumb = button.querySelector('span');
+          if (thumb) {
+            thumb.setAttribute('data-state', state);
+          }
+        };
+
+        const syncPreferenceToggles = (preferences = getStoredPreferences()) => {
+          setToggleState(analyticsToggle, preferences.analytics);
+          setToggleState(marketingToggle, preferences.marketing);
+        };
+
+        const openPreferencesModal = () => {
+          if (!modalRoot) {
+            return;
+          }
+
+          syncPreferenceToggles();
+          modalRoot.hidden = false;
+          document.documentElement.setAttribute(
+            'data-cookie-modal-open',
+            'true',
+          );
+        };
+
+        const closePreferencesModal = () => {
+          if (!modalRoot) {
+            return;
+          }
+
+          modalRoot.hidden = true;
+          root.removeAttribute('data-cookie-modal-open');
+        };
+
+        const persistDecision = (value, preferencesOverride = null) => {
+          if (preferencesOverride) {
+            setStoredPreferences(preferencesOverride);
+            syncPreferenceToggles(preferencesOverride);
+          }
+
+          try {
+            window.localStorage.setItem(storageKey, value);
+          } catch (error) {
+          }
+
+          document.cookie = `${encodeURIComponent(cookieName)}=${encodeURIComponent(
+            value,
+          )}; path=/; max-age=${maxAge}; SameSite=Lax`;
+          document.documentElement.setAttribute(
+            'data-cookie-banner-hidden',
+            'true',
+          );
+          anchor.style.display = 'none';
+          closePreferencesModal();
+        };
+
+        const bind = (id, handler) => {
+          const element = document.getElementById(id);
+          if (!element) {
+            return;
+          }
+
+          element.addEventListener('click', handler);
+        };
+
+        bind('cookie-consent-close', () => persistDecision('dismissed'));
+        bind('cookie-consent-reject', () =>
+          persistDecision('rejected', {
+            analytics: false,
+            marketing: false,
+          }),
+        );
+        bind('cookie-consent-accept', () =>
+          persistDecision('accepted', {
+            analytics: true,
+            marketing: true,
+          }),
+        );
+        bind('cookie-consent-manage', openPreferencesModal);
+        bind('cookie-consent-manage-inline', openPreferencesModal);
+
+        modalCloseButton?.addEventListener('click', closePreferencesModal);
+
+        modal?.addEventListener('click', (event) => {
+          if (event.target === modal) {
+            closePreferencesModal();
+          }
+        });
+
+        document.addEventListener('keydown', (event) => {
+          if (
+            event.key === 'Escape' &&
+            document.documentElement.getAttribute('data-cookie-modal-open') ===
+              'true'
+          ) {
+            closePreferencesModal();
+          }
+        });
+
+        analyticsToggle?.addEventListener('click', () => {
+          const preferences = getStoredPreferences();
+          const next = {
+            ...preferences,
+            analytics: !preferences.analytics,
+          };
+
+          setStoredPreferences(next);
+          syncPreferenceToggles(next);
+        });
+
+        marketingToggle?.addEventListener('click', () => {
+          const preferences = getStoredPreferences();
+          const next = {
+            ...preferences,
+            marketing: !preferences.marketing,
+          };
+
+          setStoredPreferences(next);
+          syncPreferenceToggles(next);
+        });
+
+        const footerCookieLink = Array.from(
+          document.querySelectorAll('a.cursor-pointer'),
+        ).find((element) =>
+          /cookie preferences/i.test(element.textContent || ''),
+        );
+
+        footerCookieLink?.addEventListener('click', (event) => {
+          event.preventDefault();
+          openPreferencesModal();
+        });
+
+        syncPreferenceToggles();
+      })();
+    </script>
+    <script>
+      (() => {
+        const root = document.getElementById('modal-no-auth-login');
+        if (!(root instanceof HTMLElement)) {
+          return;
+        }
+
+        const dragHost = document.getElementById('no-auth-login-drag-host');
+        const dialog = root.querySelector('[role="dialog"]');
+        const header = dialog?.querySelector('header');
+        const closeButton = root.querySelector('[data-testid="close-button"]');
+        const emailInput = root.querySelector('input[type="email"][name="email"]');
+        const googleButton = document.getElementById('no-auth-modal-google');
+        const appleButton = document.getElementById('no-auth-modal-apple');
+        const phoneButton = document.getElementById('no-auth-modal-phone');
+        const form = document.getElementById('no-auth-login-form');
+        const sidebar = document.getElementById('stage-slideover-sidebar');
+        const sidebarCloseButton = document.querySelector('[data-testid="close-sidebar-button"][aria-controls="stage-slideover-sidebar"]');
+        const pendingStorageKey = 'matrix.pending.v1';
+        const mobileModalQuery = window.matchMedia('(max-width: 767px)');
+        let activeMode = 'login';
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+        let dragPeakOffsetX = 0;
+        let dragPeakOffsetY = 0;
+        let dragLastX = 0;
+        let dragLastY = 0;
+        let dragLastTime = 0;
+        let dragVelocityX = 0;
+        let dragVelocityY = 0;
+        let dragAxis = '';
+        let dragStartZone = '';
+        let dragDiagonalSlope = 0;
+        let isDraggingModal = false;
+
+        const sanitizeEmail = (value) => String(value || '').trim().toLowerCase();
+
+        const stopModalDragTracking = () => {
+          isDraggingModal = false;
+          document.body.style.userSelect = '';
+        };
+
+        const resetDialogDragState = () => {
+          if (!(dragHost instanceof HTMLElement)) {
+            return;
+          }
+
+          dragStartX = 0;
+          dragStartY = 0;
+          dragOffsetX = 0;
+          dragOffsetY = 0;
+          dragPeakOffsetX = 0;
+          dragPeakOffsetY = 0;
+          dragLastX = 0;
+          dragLastY = 0;
+          dragVelocityX = 0;
+          dragLastTime = 0;
+          dragVelocityY = 0;
+          dragAxis = '';
+          dragStartZone = '';
+          dragDiagonalSlope = 0;
+          stopModalDragTracking();
+          dragHost.style.transform = '';
+          dragHost.style.transition = '';
+          dragHost.style.willChange = '';
+        };
+
+        const setDragHostOffset = (offsetX, offsetY) => {
+          if (!(dragHost instanceof HTMLElement)) {
+            return;
+          }
+
+          dragHost.style.transform = `translate3d(${Math.round(offsetX)}px, ${Math.round(offsetY)}px, 0)`;
+        };
+
+        const applyDialogDragOffset = (offsetX, offsetY) => {
+          dragOffsetX = Math.round(offsetX);
+          dragOffsetY = Math.round(offsetY);
+          dragPeakOffsetX = Math.max(dragPeakOffsetX, Math.abs(dragOffsetX));
+          dragPeakOffsetY = Math.max(dragPeakOffsetY, Math.abs(dragOffsetY));
+          setDragHostOffset(dragOffsetX, dragOffsetY);
+        };
+
+        const animateDragHost = (targetX, targetY, duration, onDone) => {
+          if (!(dragHost instanceof HTMLElement)) {
+            onDone?.();
+            return;
+          }
+
+          const nextX = Math.round(targetX);
+          const nextY = Math.round(targetY);
+          let finished = false;
+          let fallbackTimer = 0;
+
+          const cleanup = () => {
+            dragHost.removeEventListener('transitionend', handleTransitionEnd);
+            if (fallbackTimer) {
+              window.clearTimeout(fallbackTimer);
+            }
+            dragHost.style.willChange = '';
+          };
+
+          const complete = () => {
+            if (finished) {
+              return;
+            }
+
+            finished = true;
+            cleanup();
+            onDone?.();
+          };
+
+          const handleTransitionEnd = (event) => {
+            if (event.target !== dragHost || event.propertyName !== 'transform') {
+              return;
+            }
+
+            complete();
+          };
+
+          dragHost.style.willChange = 'transform';
+          dragHost.style.transition = `transform ${duration}ms cubic-bezier(0.22, 0.61, 0.36, 1)`;
+          void dragHost.offsetWidth;
+          dragHost.addEventListener('transitionend', handleTransitionEnd);
+          window.requestAnimationFrame(() => {
+            setDragHostOffset(nextX, nextY);
+          });
+          fallbackTimer = window.setTimeout(complete, duration + 160);
+        };
+
+        const startModalDrag = (clientX, clientY, zone = '') => {
+          if (!(dragHost instanceof HTMLElement)) {
+            return;
+          }
+
+          dragStartX = clientX;
+          dragStartY = clientY;
+          dragOffsetX = 0;
+          dragOffsetY = 0;
+          dragPeakOffsetX = 0;
+          dragPeakOffsetY = 0;
+          dragLastX = clientX;
+          dragLastY = clientY;
+          dragVelocityX = 0;
+          dragLastTime = performance.now();
+          dragVelocityY = 0;
+          dragAxis = '';
+          dragStartZone = zone;
+          dragDiagonalSlope = 0;
+          isDraggingModal = true;
+          dragHost.style.transition = 'none';
+          dragHost.style.willChange = 'transform';
+          document.body.style.userSelect = 'none';
+        };
+
+        const updateModalDrag = (clientX, clientY) => {
+          if (!isDraggingModal || !(dialog instanceof HTMLElement)) {
+            return;
+          }
+
+          const now = performance.now();
+          const deltaX = clientX - dragLastX;
+          const deltaY = clientY - dragLastY;
+          const deltaTime = Math.max(1, now - dragLastTime);
+          dragVelocityX = deltaX / deltaTime;
+          dragVelocityY = deltaY / deltaTime;
+          dragLastX = clientX;
+          dragLastY = clientY;
+          dragLastTime = now;
+
+          const nextOffsetX = clientX - dragStartX;
+          const nextOffsetY = clientY - dragStartY;
+          const lockThreshold = 12;
+          const absOffsetX = Math.abs(nextOffsetX);
+          const absOffsetY = Math.abs(nextOffsetY);
+
+          if (!dragAxis) {
+            if (Math.max(absOffsetX, absOffsetY) < lockThreshold) {
+              applyDialogDragOffset(0, 0);
+              return;
+            }
+
+            const diagonalRatio = Math.min(absOffsetX, absOffsetY) / Math.max(absOffsetX, absOffsetY);
+            dragAxis = diagonalRatio >= 0.52 ? 'diag' : absOffsetX > absOffsetY ? 'x' : 'y';
+            if (dragAxis === 'diag') {
+              dragDiagonalSlope = nextOffsetX * nextOffsetY >= 0 ? 1 : -1;
+            }
+          }
+
+          if (dragAxis === 'x') {
+            applyDialogDragOffset(nextOffsetX, 0);
+            return;
+          }
+
+          if (dragAxis === 'diag') {
+            if (!dragDiagonalSlope) {
+              dragDiagonalSlope = nextOffsetX * nextOffsetY >= 0 ? 1 : -1;
+            }
+
+            const diagonalProjection = Math.round((nextOffsetX + (dragDiagonalSlope * nextOffsetY)) / 2);
+            const diagonalOffsetX = diagonalProjection;
+            const diagonalOffsetYRaw = dragDiagonalSlope * diagonalProjection;
+            const diagonalOffsetY = diagonalOffsetYRaw < 0 && dragStartZone !== 'bottom'
+              ? Math.round(diagonalOffsetYRaw * 0.42)
+              : diagonalOffsetYRaw;
+
+            applyDialogDragOffset(diagonalOffsetX, diagonalOffsetY);
+            return;
+          }
+
+          const resistedOffsetY = nextOffsetY < 0 && dragStartZone !== 'bottom'
+            ? Math.round(nextOffsetY * 0.42)
+            : nextOffsetY;
+
+          applyDialogDragOffset(0, resistedOffsetY);
+        };
+
+        const closeDraggedModal = (direction) => {
+          if (!(dialog instanceof HTMLElement)) {
+            closeModal();
+            return;
+          }
+
+          stopModalDragTracking();
+
+          const closeAnimationMs = 420;
+          const dialogWidth = dialog.getBoundingClientRect().width;
+          const dialogHeight = dialog.getBoundingClientRect().height;
+          const closingOffsetX = direction.includes('left')
+            ? -(window.innerWidth + dialogWidth + 72)
+            : direction.includes('right')
+              ? window.innerWidth + dialogWidth + 72
+              : 0;
+          const closingOffsetY = direction.includes('up')
+            ? -(window.innerHeight + dialogHeight + 96)
+            : direction.includes('down')
+              ? window.innerHeight + dialogHeight + 96
+              : 0;
+
+          animateDragHost(closingOffsetX, closingOffsetY, closeAnimationMs, closeModal);
+        };
+
+        const setPendingAuth = (mode, email = '') => {
+          try {
+            window.localStorage.setItem(
+              pendingStorageKey,
+              JSON.stringify({
+                mode: mode === 'signup' ? 'signup' : 'login',
+                email: sanitizeEmail(email),
+                createdAt: Date.now(),
+              }),
+            );
+          } catch (_error) {
+            // noop
+          }
+        };
+
+        const collapseSidebarIfNeeded = () => {
+          if (!(sidebar instanceof HTMLElement) || !(sidebarCloseButton instanceof HTMLElement)) {
+            return;
+          }
+
+          const isMobileOpen = sidebar.dataset.sidebarMode === 'mobile' && sidebar.dataset.sidebarState === 'expanded';
+          const isDesktopExpanded =
+            document.documentElement.getAttribute('data-sidebar-desktop-state') !== 'collapsed' &&
+            sidebar.dataset.sidebarMode !== 'mobile';
+
+          if (isMobileOpen || isDesktopExpanded) {
+            sidebarCloseButton.click();
+          }
+        };
+
+        const openModal = (mode = 'login', options = {}) => {
+          activeMode = mode === 'signup' ? 'signup' : 'login';
+
+          if (options.collapseSidebar) {
+            collapseSidebarIfNeeded();
+          }
+
+          resetDialogDragState();
+          root.hidden = false;
+          window.requestAnimationFrame(() => {
+            if (emailInput instanceof HTMLElement) {
+              emailInput.focus({ preventScroll: true });
+            } else if (dialog instanceof HTMLElement) {
+              dialog.focus({ preventScroll: true });
+            }
+          });
+        };
+
+        window.openNoAuthLoginModal = (mode = 'login', options = {}) => {
+          openModal(mode, options);
+        };
+
+        const closeModal = () => {
+          resetDialogDragState();
+          root.hidden = true;
+        };
+
+        const continueWithEmail = (event) => {
+          event.preventDefault();
+          const email = sanitizeEmail(emailInput instanceof HTMLInputElement ? emailInput.value : '');
+
+          if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            if (emailInput instanceof HTMLInputElement) {
+              emailInput.focus({ preventScroll: true });
+              emailInput.reportValidity?.();
+            }
+            return;
+          }
+
+          setPendingAuth(activeMode, email);
+          window.location.href = `log-in-or-create-account.html?mode=${activeMode}`;
+        };
+
+        const continueWithGoogle = (event) => {
+          event.preventDefault();
+          setPendingAuth(activeMode, '');
+          window.location.href = `log-in-or-create-account.html?mode=${activeMode}&provider=google`;
+        };
+
+        const getModalDragStartZone = (target, clientY) => {
+          if (!(dialog instanceof HTMLElement) || !(target instanceof Node)) {
+            return '';
+          }
+
+          if (closeButton instanceof HTMLElement && closeButton.contains(target)) {
+            return '';
+          }
+
+          const targetElement = target instanceof Element ? target : null;
+          const interactiveTarget = targetElement?.closest(
+            'button, input, textarea, select, a, label, [role="button"], [role="switch"]',
+          );
+          const rect = dialog.getBoundingClientRect();
+          const offsetY = clientY - rect.top;
+          const topZoneSize = Math.min(88, Math.max(56, rect.height * 0.16));
+          const bottomZoneSize = Math.min(40, Math.max(28, rect.height * 0.08));
+          const isInTopZone = offsetY >= 0 && offsetY <= topZoneSize;
+          const isInBottomZone = offsetY >= rect.height - bottomZoneSize && offsetY <= rect.height;
+
+          if (isInTopZone) {
+            return 'top';
+          }
+
+          if (isInBottomZone && !interactiveTarget) {
+            return 'bottom';
+          }
+
+          return '';
+        };
+
+        const tryStartModalDrag = (target, clientX, clientY) => {
+          if (root.hidden || !(dialog instanceof HTMLElement)) {
+            return false;
+          }
+
+          const dragZone = getModalDragStartZone(target, clientY);
+          if (!dragZone) {
+            return false;
+          }
+
+          startModalDrag(clientX, clientY, dragZone);
+          return true;
+        };
+
+        closeButton?.addEventListener('click', (event) => {
+          event.preventDefault();
+          closeModal();
+        });
+
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && !root.hidden) {
+            closeModal();
+          }
+        });
+
+        form?.addEventListener('submit', continueWithEmail);
+        googleButton?.addEventListener('click', continueWithGoogle);
+
+        appleButton?.addEventListener('click', (event) => {
+          event.preventDefault();
+        });
+
+        phoneButton?.addEventListener('click', (event) => {
+          event.preventDefault();
+        });
+
+        const onModalTouchMove = (event) => {
+          if (!isDraggingModal || !(dialog instanceof HTMLElement)) {
+            return;
+          }
+
+          const touch = event.touches && event.touches[0];
+          if (!touch) {
+            return;
+          }
+
+          event.preventDefault();
+          updateModalDrag(touch.clientX, touch.clientY);
+        };
+
+        const finishModalDrag = () => {
+          if (!isDraggingModal || !(dragHost instanceof HTMLElement) || !(dialog instanceof HTMLElement)) {
+            return;
+          }
+
+          const dialogWidth = dialog.getBoundingClientRect().width;
+          const dialogHeight = dialog.getBoundingClientRect().height;
+          const axis = dragAxis || 'y';
+          const restoreAnimationMs = 280;
+          const axisOffset = axis === 'x' ? dragOffsetX : dragOffsetY;
+          const axisVelocity = axis === 'x' ? dragVelocityX : dragVelocityY;
+
+          stopModalDragTracking();
+
+          if (axis === 'x') {
+            const threshold = Math.min(Math.max(dialogWidth * 0.38, 120), 240);
+            const engagedDragThreshold = Math.max(70, Math.round(threshold * 0.65));
+            const shouldCloseByDistance = Math.abs(axisOffset) >= threshold;
+            const shouldCloseByVelocity =
+              dragPeakOffsetX >= engagedDragThreshold &&
+              Math.abs(axisVelocity) >= 1.25;
+
+            if (shouldCloseByDistance || shouldCloseByVelocity) {
+              closeDraggedModal((shouldCloseByVelocity ? axisVelocity : axisOffset) < 0 ? 'left' : 'right');
+              return;
+            }
+          } else if (axis === 'diag') {
+            const isMobileGesture = mobileModalQuery.matches;
+            const horizontalThreshold = Math.min(Math.max(dialogWidth * 0.28, 82), 170);
+            const downwardThreshold = Math.min(Math.max(dialogHeight * 0.34, 120), 230);
+            const upwardThreshold = isMobileGesture
+              ? Math.min(Math.max(dialogHeight * 0.24, 76), 150)
+              : Math.min(Math.max(dialogHeight * 0.18, 44), 92);
+            const horizontalVelocityThreshold = 1.05;
+            const downwardVelocityThreshold = 1.2;
+            const upwardVelocityThreshold = isMobileGesture ? 1.25 : 0.95;
+            const horizontalEngagedThreshold = Math.max(54, Math.round(horizontalThreshold * 0.62));
+            const downwardEngagedThreshold = Math.max(72, Math.round(downwardThreshold * 0.58));
+            const upwardEngagedThreshold = isMobileGesture
+              ? Math.max(54, Math.round(upwardThreshold * 0.55))
+              : Math.max(32, Math.round(upwardThreshold * 0.42));
+            const isDiagonalUp = dragOffsetY < 0;
+            const verticalThreshold = isDiagonalUp ? upwardThreshold : downwardThreshold;
+            const verticalVelocityThreshold = isDiagonalUp ? upwardVelocityThreshold : downwardVelocityThreshold;
+            const verticalEngagedThreshold = isDiagonalUp ? upwardEngagedThreshold : downwardEngagedThreshold;
+            const shouldCloseByDistance =
+              Math.abs(dragOffsetX) >= horizontalThreshold &&
+              Math.abs(dragOffsetY) >= verticalThreshold;
+            const shouldCloseByVelocity =
+              dragPeakOffsetX >= horizontalEngagedThreshold &&
+              dragPeakOffsetY >= verticalEngagedThreshold &&
+              Math.abs(dragVelocityX) >= horizontalVelocityThreshold &&
+              Math.abs(dragVelocityY) >= verticalVelocityThreshold;
+
+            if (shouldCloseByDistance || shouldCloseByVelocity) {
+              const horizontalDirection = dragOffsetX < 0 ? 'left' : 'right';
+              const verticalDirection = dragOffsetY < 0 ? 'up' : 'down';
+              closeDraggedModal(`${verticalDirection}-${horizontalDirection}`);
+              return;
+            }
+          } else {
+            const isMobileGesture = mobileModalQuery.matches;
+            const downDistanceThreshold = Math.min(Math.max(dialogHeight * 0.42, 170), 300);
+            const upDistanceThreshold = isMobileGesture
+              ? Math.min(Math.max(dialogHeight * 0.3, 90), 170)
+              : Math.min(Math.max(dialogHeight * 0.22, 56), 120);
+            const downVelocityThreshold = 1.55;
+            const upVelocityThreshold = isMobileGesture ? 1.45 : 1.1;
+            const downEngagedThreshold = Math.max(120, Math.round(downDistanceThreshold * 0.7));
+            const upEngagedThreshold = isMobileGesture
+              ? Math.max(64, Math.round(upDistanceThreshold * 0.58))
+              : Math.max(42, Math.round(upDistanceThreshold * 0.46));
+            const shouldCloseDownByDistance = axisOffset >= downDistanceThreshold;
+            const shouldCloseUpByDistance = axisOffset <= -upDistanceThreshold;
+            const shouldCloseDownByVelocity =
+              dragPeakOffsetY >= downEngagedThreshold &&
+              axisVelocity >= downVelocityThreshold;
+            const shouldCloseUpByVelocity =
+              dragPeakOffsetY >= upEngagedThreshold &&
+              axisVelocity <= -upVelocityThreshold &&
+              Math.abs(axisOffset) >= (isMobileGesture
+                ? Math.max(36, Math.round(upEngagedThreshold * 0.38))
+                : Math.max(24, Math.round(upEngagedThreshold * 0.2)));
+
+            if (
+              shouldCloseDownByDistance ||
+              shouldCloseDownByVelocity ||
+              shouldCloseUpByDistance ||
+              shouldCloseUpByVelocity
+            ) {
+              closeDraggedModal(shouldCloseUpByDistance || shouldCloseUpByVelocity ? 'up' : 'down');
+              return;
+            }
+          }
+
+          animateDragHost(0, 0, restoreAnimationMs, () => {
+            resetDialogDragState();
+          });
+        };
+
+        dialog?.addEventListener('touchstart', (event) => {
+          if (!mobileModalQuery.matches || !(dialog instanceof HTMLElement)) {
+            return;
+          }
+
+          const touch = event.touches && event.touches[0];
+          const target = event.target;
+          if (!touch || !(target instanceof Node)) {
+            return;
+          }
+
+          tryStartModalDrag(target, touch.clientX, touch.clientY);
+        }, { passive: true });
+
+        dialog?.addEventListener('mousedown', (event) => {
+          if (!(dialog instanceof HTMLElement) || event.button !== 0) {
+            return;
+          }
+
+          const target = event.target;
+          if (!(target instanceof Node)) {
+            return;
+          }
+
+          if (tryStartModalDrag(target, event.clientX, event.clientY)) {
+            event.preventDefault();
+          }
+        });
+
+        window.addEventListener('touchmove', onModalTouchMove, { passive: false });
+        window.addEventListener('touchend', finishModalDrag, { passive: true });
+        window.addEventListener('touchcancel', finishModalDrag, { passive: true });
+        window.addEventListener('mousemove', (event) => {
+          if (!isDraggingModal) {
+            return;
+          }
+
+          updateModalDrag(event.clientX, event.clientY);
+        });
+        window.addEventListener('mouseup', finishModalDrag);
+        window.addEventListener('mouseout', (event) => {
+          if (mobileModalQuery.matches || !isDraggingModal || root.hidden) {
+            return;
+          }
+
+          if (event.relatedTarget instanceof Node) {
+            return;
+          }
+
+          if ((event.buttons & 1) !== 1) {
+            return;
+          }
+
+          const hasUpwardIntent =
+            dragOffsetY <= -18 &&
+            Math.abs(dragOffsetY) >= Math.abs(dragOffsetX);
+
+          if (!hasUpwardIntent) {
+            return;
+          }
+
+          if (dragAxis === 'diag' && Math.abs(dragOffsetX) >= 18) {
+            closeDraggedModal(dragOffsetX < 0 ? 'up-left' : 'up-right');
+            return;
+          }
+
+          closeDraggedModal('up');
+        });
+
+        Array.from(document.querySelectorAll('[data-no-auth-modal-trigger]')).forEach((button) => {
+          button.addEventListener('click', (event) => {
+            event.preventDefault();
+            const trigger = event.currentTarget;
+            if (!(trigger instanceof HTMLElement)) {
+              return;
+            }
+
+            openModal(trigger.dataset.noAuthModalTrigger || 'login', {
+              collapseSidebar: trigger.dataset.noAuthCollapseSidebar === 'true',
+            });
+          });
+        });
+      })();
+    </script>
     <script src="src/js/tooltip.js" defer data-tooltip-patch="radix-style-match"></script>
     <script src="src/js/home-hover.js" defer data-home-hover="sidebar-home-rotate"></script>
     <script src="src/js/composer-state.js" defer data-composer-state="prompt-send-toggle"></script>

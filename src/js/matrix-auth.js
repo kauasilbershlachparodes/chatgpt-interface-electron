@@ -31,6 +31,17 @@
     : null;
 
   const getPageName = () => window.location.pathname.split('/').pop() || '';
+  const getSearchParam = (key) => {
+    try {
+      return new URLSearchParams(window.location.search).get(key);
+    } catch (_error) {
+      return null;
+    }
+  };
+  const getRequestedOAuthProvider = () => {
+    const provider = String(getSearchParam('provider') || '').trim().toLowerCase();
+    return provider === 'google' ? provider : null;
+  };
 
   const getMessageHost = () => document.querySelector('div[aria-live="polite"].__matrix-message-host, ._hiddenErrorsContainer_1wcdi_38') || null;
 
@@ -116,6 +127,47 @@
     if (client) return true;
     showMessage('Supabase client is not available on this page.');
     return false;
+  };
+
+  const getOAuthCallbackUrl = () => `${window.location.origin}/auth/callback.html`;
+
+  const startOAuthSignIn = async (provider, button) => {
+    clearMessage();
+
+    if (!requireClient()) return;
+
+    if (!/^https?:$/.test(window.location.protocol)) {
+      showMessage(`${provider[0].toUpperCase()}${provider.slice(1)} sign-in requires the app to run over http://localhost or https.`);
+      return;
+    }
+
+    try {
+      setBusy(button, true);
+      const { data, error } = await client.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: getOAuthCallbackUrl(),
+          skipBrowserRedirect: true,
+          queryParams: provider === 'google'
+            ? {
+                access_type: 'offline',
+                prompt: 'select_account'
+              }
+            : undefined
+        }
+      });
+
+      if (error) throw error;
+      if (!data || !data.url) {
+        throw new Error(`Supabase did not return an OAuth URL for ${provider}.`);
+      }
+
+      window.location.href = data.url;
+    } catch (error) {
+      showMessage(error && error.message ? error.message : `Unable to start ${provider} sign-in.`);
+    } finally {
+      setBusy(button, false);
+    }
   };
 
 
@@ -539,11 +591,25 @@
 
     socialButtons.forEach((button) => {
       button.type = 'button';
-      button.addEventListener('click', (event) => {
+      button.addEventListener('click', async (event) => {
         event.preventDefault();
+
+        if (button.value === 'google') {
+          await startOAuthSignIn('google', button);
+          return;
+        }
+
         showMessage('This provider is not configured yet in the local Matrix gate flow.');
       });
     });
+
+    const requestedProvider = getRequestedOAuthProvider();
+    if (requestedProvider === 'google') {
+      const googleButton = socialButtons.find((button) => button.value === 'google');
+      window.requestAnimationFrame(() => {
+        startOAuthSignIn('google', googleButton || submitButton);
+      });
+    }
 
     if (!form || !submitButton || !emailInput) return;
 
@@ -624,7 +690,7 @@
         if (mode === 'signup') {
           const { data, error } = await client.auth.updateUser({ password });
           if (error) throw error;
-          matrix.startAuthenticatedSession(data && data.user ? data.user : { email: pending.email });
+          matrix.startAuthenticatedSession(data && data.user ? data.user : { email: pending.email }, { provider: 'email' });
           matrix.clearPendingAuth();
           goToIndex();
           return;
@@ -635,7 +701,7 @@
           password
         });
         if (error) throw error;
-        matrix.startAuthenticatedSession(data && data.user ? data.user : { email: pending.email });
+        matrix.startAuthenticatedSession(data && data.user ? data.user : { email: pending.email }, { provider: 'email' });
         matrix.clearPendingAuth();
         goToIndex();
       } catch (error) {
@@ -713,7 +779,7 @@
           return;
         }
 
-        matrix.startAuthenticatedSession(data && data.user ? data.user : { email: pending.email });
+        matrix.startAuthenticatedSession(data && data.user ? data.user : { email: pending.email }, { provider: 'email' });
         matrix.clearPendingAuth();
         goToIndex();
       } catch (error) {
