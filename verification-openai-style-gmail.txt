@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+  <body style="margin:0;padding:0;background-color:#ffffff;">
+    
+    <center>
+      <table style="width:560px;margin:0;padding:0;border-collapse:collapse!important;height:100%!important;background-color:#ffffff" align="center" cellpadding="0" cellspacing="0">
+        
+        <tr>
+          <td align="center" valign="top" style="margin:0;padding:0 16px;height:100%!important">
+
+            <!-- HEADER -->
+            <div style="background-color:#ffffff;color:#202123;padding:56px 0 32px 0">
+              <p style="text-align:left;margin:0">
+                <img src="https://res.cloudinary.com/do7vwsnpg/image/upload/v1775709641/unnamed_g0krzp.png"
+                     style="height:36px;width:auto;border:0;outline:none;text-decoration:none">
+              </p>
+            </div>
+
+            <!-- CONTENT -->
+            <table>
+              <tr>
+                <td style="background-color:#ffffff;color:#353740;text-align:left;line-height:1.5">
+
+                  <p style="font-size:16px;line-height:24px;margin:0">
+                    Enter this temporary verification code to continue:
+                  </p>
+
+                  <!-- CODE BOX (CORRIGIDO) -->
+                  <p style="
+                    font-family:Menlo,Monaco,Lucida Console,Arial;
+                    font-size:24px;
+                    line-height:28px;
+                    background-color:#f3f3f3;
+                    color:#5d5d5d;
+                    border-radius:16px;
+                    padding:28px 24px;
+                    margin:24px 0;
+                    text-align:left;
+                    letter-spacing:2px;
+                  ">
+                    {{ .Token }}
+                  </p>
+
+                  <p style="font-size:16px;line-height:24px;margin:0;margin-bottom:24px">
+                    Please ignore this email if this wasn’t you trying to create a ChatGPT account.
+                  </p>
+
+                  <p style="margin:0;color:#8f8f8f">
+                    <br>Best,<br>The ChatGPT team
+
+
+                  </p>
+
+                </td>
+              </tr>
+
+              <!-- DIVIDER -->
+              <tr>
+                <td>
+                  <p style="height:1px;width:100%;background:#e5e5e5;margin:40px 0"></p>
+                </td>
+              </tr>
+
+            </table>
+
+            <!-- FOOTER -->
+            <table style="text-align:left;background:#ffffff;color:#6e6e80;width:100%">
+              <tr>
+                <td>
+                  <img src="https://res.cloudinary.com/do7vwsnpg/image/upload/v1775709641/unnamed_g0krzp.png"
+                       width="64"
+                       style="width:64px;height:auto;border:0;margin-bottom:16px">
+                </td>
+              </tr>
+              <tr>
+                <td style="font-size:12px;line-height:16px;padding-bottom:16px">
+                  <p style="margin:0">
+                    <a style="color:#8f8f8f" href="https://chatgpt.com" target="_blank">
+                      ChatGPT
+                    </a>
+                  </p>
+                  <p style="margin:0">
+                    <a style="color:#8f8f8f" href="https://help.openai.com" target="_blank">
+                      Help center
+                    </a>
+                  </p>
+                </td>
+              </tr>
+            </table>
+
+          </td>
+        </tr>
+
+      </table>
+    </center>
+
+  </body>
+</html>

@@ -26,30 +26,8 @@
     <meta name="apple-itunes-app" content="app-id=6448311069" />
     <meta name="dd-trace-id" content="102877199555354332" />
     <meta name="dd-trace-time" content="1775645069027" />
-    <link rel="icon" href="/favicon.ico" sizes="any" />
-    <link rel="icon" href="/cdn/assets/favicon-eex17e9e.ico" sizes="48x48" />
-    <link
-      rel="icon"
-      href="/cdn/assets/favicon-l4nq08hd.svg"
-      type="image/svg+xml"
-    />
-    <link
-      rel="icon"
-      href="/cdn/assets/favicon-l4nq08hd.svg"
-      type="image/svg+xml"
-      media="(prefers-color-scheme: dark)"
-    />
-    <link
-      rel="icon"
-      href="/cdn/assets/favicon-48x48-0tm76ul0.webp"
-      type="image/png"
-      sizes="48x48"
-    />
-    <link
-      rel="apple-touch-icon"
-      sizes="180x180"
-      href="/cdn/assets/favicon-180x180-kqq5ndm1.webp"
-    />
+    <link rel="icon" href="build/icon.ico" type="image/x-icon" />
+    <link rel="shortcut icon" href="build/icon.ico" type="image/x-icon" />
     <title>Get started | ChatGPT</title>
     <meta name="description" content="Log in or sign up to ChatGPT" />
     <meta
@@ -73,17 +51,6 @@
       href="src/css/login/conversation-small-lu6fmh5f.css"
     />
   
-    <link
-      rel="icon"
-      href="/cdn/assets/favicon-48x48-glnpepm0.webp"
-      type="image/png"
-      sizes="48x48"
-    />
-    <link
-      rel="apple-touch-icon"
-      sizes="180x180"
-      href="/cdn/assets/favicon-180x180-od45eci6.webp"
-    />
   
     <link
       rel="stylesheet"
@@ -96,6 +63,70 @@
       crossorigin=""
       href="src/css/login/root-k6k5q7h62.css"
     />
+    <style>
+      #hero-prompt-rotator {
+        position: relative;
+        min-height: 6.8rem;
+        isolation: isolate;
+        overflow: visible;
+      }
+
+      #hero-prompt-rotator .hero-prompt-panel {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        max-width: 100%;
+        opacity: 0;
+        transform: translate3d(0, 10px, 0);
+        transition:
+          opacity 680ms cubic-bezier(0.22, 1, 0.36, 1),
+          transform 680ms cubic-bezier(0.22, 1, 0.36, 1);
+        will-change: opacity, transform;
+        pointer-events: none;
+      }
+
+      #hero-prompt-rotator .hero-prompt-panel.is-active {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+      }
+
+      #hero-prompt-rotator .hero-prompt-panel.is-exiting {
+        opacity: 0;
+        transform: translate3d(0, -10px, 0);
+      }
+
+      #hero-prompt-rotator .hero-prompt-panel--sizer {
+        position: relative;
+        inset: auto;
+        opacity: 0 !important;
+        transform: none !important;
+        visibility: hidden;
+        pointer-events: none;
+      }
+
+      #hero-prompt-rotator .hero-prompt-panel p {
+        margin: 0;
+        max-width: 100%;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: normal;
+      }
+
+      #hero-prompt-rotator .hero-prompt-panel [data-hero-prompt-body] {
+        white-space: normal;
+      }
+
+      #hero-prompt-rotator .font-circle {
+        display: inline-block;
+        transition: opacity 220ms ease;
+      }
+
+      #hero-prompt-rotator .font-circle.is-hidden {
+        opacity: 0;
+      }
+    </style>
     <style id="googleidentityservice_button_styles" nonce="">
       .qJTHM {
         -moz-user-select: none;
@@ -651,15 +682,21 @@
             aria-hidden="true"
           >
             <div
-              class="-mt-4 flex w-full flex-col ps-5 md:ps-8 lg:ps-10"
-              style="opacity: 1; transform: none"
+              id="hero-prompt-rotator"
+              class="-mt-4 w-full ps-5 md:ps-8 lg:ps-10"
             >
-              <p class="font-bold">Recommend a dish</p>
-              <p class="font-normal">
-                to impress a date who's a picky eat<span class="font-circle"
-                  >&ZeroWidthSpace;●</span
-                >
-              </p>
+              <div class="hero-prompt-panel is-active" data-hero-prompt-panel>
+                <p class="font-bold" data-hero-prompt-title>
+                  Suggest fun activities
+                </p>
+                <p class="font-normal">
+                  <span data-hero-prompt-body></span><span
+                    class="font-circle"
+                    data-hero-prompt-dot
+                    >&ZeroWidthSpace;●</span
+                  >
+                </p>
+              </div>
             </div>
           </div>
         </div>

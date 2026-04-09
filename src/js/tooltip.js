@@ -4,6 +4,24 @@
   const GAP = 8;
   const VIEWPORT_PADDING = 8;
   const POINTER_FOCUS_SUPPRESSION_MS = 350;
+  const INTERACTIVE_CLOSE_DELAY = 120;
+  const HIDDEN_TOOLTIP_STYLE = 'position: absolute; border: 0px; width: 1px; height: 1px; padding: 0px; margin: -1px; overflow: hidden; clip: rect(0px, 0px, 0px, 0px); white-space: nowrap; overflow-wrap: normal;';
+
+  const findSidebarItemByLabel = (label) => {
+    const normalizedLabel = String(label).trim().toLowerCase();
+    const labels = Array.from(document.querySelectorAll('[data-sidebar-item="true"] .truncate'));
+    const labelNode = labels.find((node) => (node.textContent || '').trim().toLowerCase() === normalizedLabel);
+    return labelNode ? labelNode.closest('[data-sidebar-item="true"]') : null;
+  };
+
+  const navigateToAuth = (mode) => {
+    const matrix = window.MatrixSession;
+    if (matrix) {
+      matrix.clearPendingAuth?.();
+      matrix.setPendingAuth?.({ mode, email: '' });
+    }
+    window.location.href = `log-in-or-create-account.html?mode=${mode}`;
+  };
 
   const TOOLTIPS = [
     {
@@ -35,6 +53,20 @@
       type: 'open-sidebar',
       side: 'right',
       getElement: () => document.querySelector('#stage-sidebar-tiny-bar button[aria-controls="stage-slideover-sidebar"]')
+    },
+    {
+      owner: 'new-chat-btn',
+      type: 'new-chat',
+      side: 'right',
+      getElement: () => document.querySelector('#stage-sidebar-tiny-bar [data-testid="create-new-chat-button"]')
+    },
+    {
+      owner: 'search-chats-sidebar',
+      type: 'search-chats-card',
+      side: 'right',
+      align: 'start',
+      interactive: true,
+      getElement: () => findSidebarItemByLabel('Search chats')
     }
   ];
 
@@ -47,9 +79,34 @@
       "'": '&#39;'
     }[char]));
 
-  const createTooltipInner = (type, side, tooltipId) => {
+  const createTooltipInner = (type, side, align, tooltipId) => {
     const baseClass = 'relative z-50 transition-opacity select-none px-2 py-1 rounded-lg overflow-hidden dark bg-black max-w-xs';
     const commonStyle = 'style="--radix-tooltip-content-transform-origin: var(--radix-popper-transform-origin); --radix-tooltip-content-available-width: var(--radix-popper-available-width); --radix-tooltip-content-available-height: var(--radix-popper-available-height); --radix-tooltip-trigger-width: var(--radix-popper-anchor-width); --radix-tooltip-trigger-height: var(--radix-popper-anchor-height);"';
+    const hiddenTooltipOpen = `<span id="${tooltipId}" role="tooltip" style="${HIDDEN_TOOLTIP_STYLE}">`;
+
+    if (type === 'search-chats-card') {
+      return `
+        <div data-side="right" data-align="start" data-state="closed" role="dialog" class="z-50" style="--radix-hover-card-content-transform-origin: var(--radix-popper-transform-origin); --radix-hover-card-content-available-width: var(--radix-popper-available-width); --radix-hover-card-content-available-height: var(--radix-popper-available-height); --radix-hover-card-trigger-width: var(--radix-popper-anchor-width); --radix-hover-card-trigger-height: var(--radix-popper-anchor-height);">
+          <div style="opacity: 1; transform: none;">
+            <div class="z-50 popover overflow-auto rounded-2xl dark:bg-[#353535] bg-clip-padding bg-token-main-surface-primary shadow-long w-[340px] p-0">
+              <div class="bg-cover bg-center bg-no-repeat" style="height: 136px; background-image: url('https://openaiassets.blob.core.windows.net/$web/chatgpt/clients/noauth/home_popup_search.webp');"></div>
+              <div class="bg-token-bg-elevated-primary px-4 py-6">
+                <p class="text-token-text-primary text-lg leading-6">${escapeHtml('Search your chat history')}</p>
+                <p class="text-token-text-tertiary mt-2 text-sm leading-5">${escapeHtml('Log in to save conversations, search past answers, and pick up where you left off.')}</p>
+                <div class="mt-4 flex flex-wrap gap-2">
+                  <button class="btn relative group-focus-within/dialog:focus-visible:[outline-width:1.5px] group-focus-within/dialog:focus-visible:[outline-offset:2.5px] group-focus-within/dialog:focus-visible:[outline-style:solid] group-focus-within/dialog:focus-visible:[outline-color:var(--text-primary)] btn-primary" data-testid="unsupported-nav-login" tabindex="-1">
+                    <div class="flex items-center justify-center">${escapeHtml('Log in')}</div>
+                  </button>
+                  <button class="btn relative group-focus-within/dialog:focus-visible:[outline-width:1.5px] group-focus-within/dialog:focus-visible:[outline-offset:2.5px] group-focus-within/dialog:focus-visible:[outline-style:solid] group-focus-within/dialog:focus-visible:[outline-color:var(--text-primary)] btn-secondary" data-testid="unsupported-nav-signup" tabindex="-1">
+                    <div class="flex items-center justify-center">${escapeHtml('Sign up for free')}</div>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
 
     if (type === 'plus') {
       return `
@@ -60,11 +117,42 @@
               <div class="text-token-text-tertiary text-xs font-medium whitespace-pre-wrap text-center"><kbd class="bg-token-bg-tertiary -me-1 inline-grid aspect-square w-4 items-center justify-center rounded-sm text-[11px]"><span>${escapeHtml('/')}</span></kbd></div>
             </div>
           </div>
-          <span id="${tooltipId}" role="tooltip" style="position: absolute; border: 0px; width: 1px; height: 1px; padding: 0px; margin: -1px; overflow: hidden; clip: rect(0px, 0px, 0px, 0px); white-space: nowrap; overflow-wrap: normal;">
+          ${hiddenTooltipOpen}
             <div class="flex items-center gap-1">
               <div class="flex gap-2">
                 <div class="text-token-text-primary text-xs font-semibold whitespace-pre-wrap text-center">${escapeHtml('Add files and more')}</div>
                 <div class="text-token-text-tertiary text-xs font-medium whitespace-pre-wrap text-center"><kbd class="bg-token-bg-tertiary -me-1 inline-grid aspect-square w-4 items-center justify-center rounded-sm text-[11px]"><span>${escapeHtml('/')}</span></kbd></div>
+              </div>
+            </div>
+          </span>
+        </div>
+      `;
+    }
+
+    if (type === 'new-chat') {
+      const shortcut = `
+        <div class="inline-flex items-center text-token-text-tertiary text-xs font-medium whitespace-pre text-center leading-none touch:hidden">
+          <div class="inline-flex items-center whitespace-pre *:inline-flex *:items-center *:font-sans *:not-last:after:px-0.5 *:not-last:after:content-['+']">
+            <kbd aria-label="Control"><span class="min-w-[1em]">${escapeHtml('Ctrl')}</span></kbd>
+            <kbd aria-label="Shift"><span class="min-w-[1em]">${escapeHtml('Shift')}</span></kbd>
+            <kbd><span class="min-w-[1em]">${escapeHtml('O')}</span></kbd>
+          </div>
+        </div>
+      `;
+
+      return `
+        <div data-side="right" data-align="center" data-state="closed" class="${baseClass}" ${commonStyle}>
+          <div class="flex items-center gap-1">
+            <div class="flex items-center gap-2">
+              <div class="text-token-text-primary text-xs font-semibold whitespace-pre-wrap text-center">${escapeHtml('New chat')}</div>
+              ${shortcut}
+            </div>
+          </div>
+          ${hiddenTooltipOpen}
+            <div class="flex items-center gap-1">
+              <div class="flex items-center gap-2">
+                <div class="text-token-text-primary text-xs font-semibold whitespace-pre-wrap text-center">${escapeHtml('New chat')}</div>
+                ${shortcut}
               </div>
             </div>
           </span>
@@ -81,15 +169,16 @@
 
     const label = labelByType[type];
     const dataSide = side === 'right' ? 'right' : 'bottom';
+    const dataAlign = align === 'start' ? 'start' : 'center';
 
     return `
-      <div data-side="${escapeHtml(dataSide)}" data-align="center" data-state="closed" class="${baseClass}" ${commonStyle}>
+      <div data-side="${escapeHtml(dataSide)}" data-align="${escapeHtml(dataAlign)}" data-state="closed" class="${baseClass}" ${commonStyle}>
         <div class="flex items-center gap-1">
           <div>
             <div class="text-token-text-primary text-xs font-semibold whitespace-pre-wrap text-center">${escapeHtml(label)}</div>
           </div>
         </div>
-        <span id="${tooltipId}" role="tooltip" style="position: absolute; border: 0px; width: 1px; height: 1px; padding: 0px; margin: -1px; overflow: hidden; clip: rect(0px, 0px, 0px, 0px); white-space: nowrap; overflow-wrap: normal;">
+        ${hiddenTooltipOpen}
           <div class="flex items-center gap-1">
             <div>
               <div class="text-token-text-primary text-xs font-semibold whitespace-pre-wrap text-center">${escapeHtml(label)}</div>
@@ -100,7 +189,7 @@
     `;
   };
 
-  const createTooltip = ({ owner, type, side }) => {
+  const createTooltip = ({ owner, type, side, align = 'center', interactive = false }) => {
     const tooltipId = `radix-${Math.random().toString(36).slice(2)}`;
     const wrapper = document.createElement('div');
     wrapper.setAttribute('data-radix-popper-content-wrapper', '');
@@ -111,19 +200,22 @@
     wrapper.style.transform = 'translate(0px, 0px)';
     wrapper.style.minWidth = 'max-content';
     wrapper.style.zIndex = '50';
-    wrapper.style.setProperty('--radix-popper-transform-origin', side === 'right' ? '0px 50%' : '50% 0px');
+    wrapper.style.pointerEvents = 'none';
+    wrapper.style.setProperty('--radix-popper-transform-origin', side === 'right' && align === 'start' ? '0px 0px' : side === 'right' ? '0px 50%' : '50% 0px');
     wrapper.style.setProperty('--radix-popper-available-width', `${window.innerWidth}px`);
     wrapper.style.setProperty('--radix-popper-available-height', '0px');
     wrapper.style.setProperty('--radix-popper-anchor-width', '0px');
     wrapper.style.setProperty('--radix-popper-anchor-height', '0px');
     wrapper.hidden = true;
-    wrapper.innerHTML = createTooltipInner(type, side, tooltipId);
+    wrapper.innerHTML = createTooltipInner(type, side, align, tooltipId);
     document.body.appendChild(wrapper);
 
     return {
       wrapper,
       surface: wrapper.firstElementChild,
-      srOnly: wrapper.querySelector('[role="tooltip"]')
+      srOnly: wrapper.querySelector('[role="tooltip"]'),
+      dialog: wrapper.querySelector('[role="dialog"]'),
+      interactive
     };
   };
 
@@ -140,6 +232,48 @@
     element.getClientRects().length > 0
   );
 
+  const applyForcedRevealState = (instance) => {
+    if (!instance?.interactive || !(instance.button instanceof HTMLElement) || instance.revealStateApplied) {
+      return;
+    }
+
+    const computed = window.getComputedStyle(instance.button);
+    const openBackground = computed.getPropertyValue('--menu-item-open').trim();
+    instance.revealStateSnapshot = {
+      backgroundColor: instance.button.style.backgroundColor,
+      dataRevealed: instance.button.getAttribute('data-revealed'),
+      dataForceHoverActive: instance.button.getAttribute('data-force-hover-active')
+    };
+
+    instance.button.setAttribute('data-revealed', '');
+    instance.button.setAttribute('data-force-hover-active', 'reveal');
+    if (openBackground) {
+      instance.button.style.backgroundColor = openBackground;
+    }
+    instance.revealStateApplied = true;
+  };
+
+  const clearForcedRevealState = (instance) => {
+    if (!instance?.revealStateApplied || !(instance.button instanceof HTMLElement)) {
+      return;
+    }
+
+    const snapshot = instance.revealStateSnapshot || {};
+    instance.button.style.backgroundColor = snapshot.backgroundColor || '';
+    if (snapshot.dataRevealed === null) {
+      instance.button.removeAttribute('data-revealed');
+    } else {
+      instance.button.setAttribute('data-revealed', snapshot.dataRevealed);
+    }
+    if (snapshot.dataForceHoverActive === null) {
+      instance.button.removeAttribute('data-force-hover-active');
+    } else {
+      instance.button.setAttribute('data-force-hover-active', snapshot.dataForceHoverActive);
+    }
+    instance.revealStateSnapshot = null;
+    instance.revealStateApplied = false;
+  };
+
   const destroyPreviousManager = () => {
     if (window.__stageTooltipManager && typeof window.__stageTooltipManager.destroy === 'function') {
       window.__stageTooltipManager.destroy();
@@ -150,6 +284,7 @@
     let activeOwner = null;
     let suppressFocusUntil = 0;
     let keyboardMode = false;
+    let bindRafId = null;
     const instances = new Map();
     const cleanup = [];
 
@@ -160,6 +295,8 @@
 
       window.clearTimeout(instance.openTimer);
       instance.openTimer = null;
+      window.clearTimeout(instance.closeTimer);
+      instance.closeTimer = null;
 
       if (instance.rafId) {
         window.cancelAnimationFrame(instance.rafId);
@@ -168,7 +305,9 @@
 
       instance.surface.setAttribute('data-state', 'closed');
       instance.wrapper.hidden = true;
+      instance.wrapper.style.pointerEvents = 'none';
       instance.button?.removeAttribute('aria-describedby');
+      clearForcedRevealState(instance);
       instance.isOpen = false;
 
       if (activeOwner === instance.owner) {
@@ -182,6 +321,17 @@
           hideInstance(instance);
         }
       });
+    };
+
+    const unbindInstance = (instance) => {
+      if (!instance) {
+        return;
+      }
+
+      hideInstance(instance);
+      instance.cleanupFns?.splice(0).forEach((fn) => fn());
+      instance.wrapper.remove();
+      instances.delete(instance.owner);
     };
 
     const updatePosition = (instance) => {
@@ -198,8 +348,10 @@
 
       if (instance.side === 'right') {
         x = Math.round(rect.right + GAP);
-        y = Math.round(rect.top + (rect.height - tooltipRect.height) / 2);
-        instance.wrapper.style.setProperty('--radix-popper-transform-origin', '0px 50%');
+        y = instance.align === 'start'
+          ? Math.round(rect.top)
+          : Math.round(rect.top + (rect.height - tooltipRect.height) / 2);
+        instance.wrapper.style.setProperty('--radix-popper-transform-origin', instance.align === 'start' ? '0px 0px' : '0px 50%');
       } else {
         x = Math.round(rect.left + rect.width / 2 - tooltipRect.width / 2);
         y = Math.round(rect.bottom + GAP);
@@ -227,8 +379,11 @@
       hideAll({ exceptOwner: instance.owner });
 
       instance.wrapper.hidden = false;
-      instance.surface.setAttribute('data-state', 'delayed-open');
-      instance.button.setAttribute('aria-describedby', instance.srOnly.id);
+      instance.wrapper.style.pointerEvents = instance.interactive ? 'auto' : 'none';
+      instance.surface.setAttribute('data-state', instance.interactive ? 'open' : 'delayed-open');
+      if (instance.srOnly?.id) {
+        instance.button.setAttribute('aria-describedby', instance.srOnly.id);
+      }
 
       if (instance.rafId) {
         window.cancelAnimationFrame(instance.rafId);
@@ -247,13 +402,36 @@
       }
 
       window.clearTimeout(instance.openTimer);
+      window.clearTimeout(instance.closeTimer);
+      instance.closeTimer = null;
       instance.openTimer = window.setTimeout(() => openNow(instance), OPEN_DELAY);
+    };
+
+    const scheduleHide = (instance) => {
+      if (!instance) {
+        return;
+      }
+
+      window.clearTimeout(instance.closeTimer);
+      instance.closeTimer = window.setTimeout(() => {
+        hideInstance(instance);
+      }, instance.interactive ? INTERACTIVE_CLOSE_DELAY : 0);
     };
 
     const shouldOpenFromFocus = () => keyboardMode && Date.now() >= suppressFocusUntil;
 
     const bindTooltip = (config) => {
       const button = config.getElement();
+      const existingInstance = instances.get(config.owner);
+
+      if (existingInstance && existingInstance.button === button && isElementAvailable(button)) {
+        return;
+      }
+
+      if (existingInstance && existingInstance.button !== button) {
+        unbindInstance(existingInstance);
+      }
+
       if (!isElementAvailable(button) || button.dataset.tooltipBound === 'true') {
         return;
       }
@@ -262,10 +440,15 @@
       const instance = {
         owner: config.owner,
         side: config.side,
+        align: config.align || 'center',
         button,
         openTimer: null,
+        closeTimer: null,
         rafId: null,
         isOpen: false,
+        revealStateApplied: false,
+        revealStateSnapshot: null,
+        cleanupFns: [],
         ...parts
       };
 
@@ -274,11 +457,12 @@
 
       const onMouseEnter = () => {
         keyboardMode = false;
+        clearForcedRevealState(instance);
         scheduleOpen(instance);
       };
 
       const onMouseLeave = () => {
-        hideInstance(instance);
+        scheduleHide(instance);
       };
 
       const onFocus = () => {
@@ -288,7 +472,7 @@
       };
 
       const onBlur = () => {
-        hideInstance(instance);
+        scheduleHide(instance);
       };
 
       const onPointerDown = () => {
@@ -316,7 +500,44 @@
       button.addEventListener('click', onClick);
       button.addEventListener('keydown', onKeyDown);
 
-      cleanup.push(() => {
+      if (instance.interactive) {
+        const onSurfaceMouseEnter = () => {
+          window.clearTimeout(instance.closeTimer);
+          instance.closeTimer = null;
+          applyForcedRevealState(instance);
+        };
+
+        const onSurfaceMouseLeave = () => {
+          clearForcedRevealState(instance);
+          scheduleHide(instance);
+        };
+
+        const onLoginClick = (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          navigateToAuth('login');
+        };
+
+        const onSignupClick = (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          navigateToAuth('signup');
+        };
+
+        instance.wrapper.addEventListener('mouseenter', onSurfaceMouseEnter);
+        instance.wrapper.addEventListener('mouseleave', onSurfaceMouseLeave);
+        instance.wrapper.querySelector('[data-testid="unsupported-nav-login"]')?.addEventListener('click', onLoginClick);
+        instance.wrapper.querySelector('[data-testid="unsupported-nav-signup"]')?.addEventListener('click', onSignupClick);
+
+        instance.cleanupFns.push(() => {
+          instance.wrapper.removeEventListener('mouseenter', onSurfaceMouseEnter);
+          instance.wrapper.removeEventListener('mouseleave', onSurfaceMouseLeave);
+          instance.wrapper.querySelector('[data-testid="unsupported-nav-login"]')?.removeEventListener('click', onLoginClick);
+          instance.wrapper.querySelector('[data-testid="unsupported-nav-signup"]')?.removeEventListener('click', onSignupClick);
+        });
+      }
+
+      instance.cleanupFns.push(() => {
         button.removeEventListener('mouseenter', onMouseEnter);
         button.removeEventListener('mouseleave', onMouseLeave);
         button.removeEventListener('focus', onFocus);
@@ -324,7 +545,22 @@
         button.removeEventListener('pointerdown', onPointerDown);
         button.removeEventListener('click', onClick);
         button.removeEventListener('keydown', onKeyDown);
-        delete button.dataset.tooltipBound;
+        button.removeAttribute('data-tooltip-bound');
+      });
+    };
+
+    const bindAvailableTooltips = () => {
+      TOOLTIPS.forEach(bindTooltip);
+    };
+
+    const scheduleBind = () => {
+      if (bindRafId) {
+        return;
+      }
+
+      bindRafId = window.requestAnimationFrame(() => {
+        bindRafId = null;
+        bindAvailableTooltips();
       });
     };
 
@@ -392,13 +628,34 @@
     cleanup.push(() => window.removeEventListener('blur', onWindowBlur));
     cleanup.push(() => document.removeEventListener('visibilitychange', onVisibilityChange));
 
-    TOOLTIPS.forEach(bindTooltip);
+    bindAvailableTooltips();
+
+    const observerTarget = document.body || document.documentElement;
+    if (observerTarget) {
+      const observer = new MutationObserver(() => {
+        scheduleBind();
+      });
+
+      observer.observe(observerTarget, {
+        childList: true,
+        subtree: true
+      });
+
+      cleanup.push(() => observer.disconnect());
+    }
+
+    cleanup.push(() => {
+      if (bindRafId) {
+        window.cancelAnimationFrame(bindRafId);
+        bindRafId = null;
+      }
+    });
 
     return {
       destroy() {
         hideAll();
         cleanup.splice(0).forEach((fn) => fn());
-        instances.forEach((instance) => instance.wrapper.remove());
+        Array.from(instances.values()).forEach(unbindInstance);
         instances.clear();
         activeOwner = null;
       }
