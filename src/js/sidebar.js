@@ -298,7 +298,7 @@
         <div class="flex min-w-0 items-center gap-1.5"><div class="flex items-center justify-center [opacity:var(--menu-item-icon-opacity,1)] icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true" class="icon"><use href="#ac4202" fill="currentColor"></use></svg></div>See plans and pricing</div>
         <div class="trailing highlight text-token-text-tertiary"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" aria-hidden="true" data-rtl-flip="" class="icon-sm"><use href="#e51fba" fill="currentColor"></use></svg></div>
       </a>
-      <div role="menuitem" tabindex="0" class="group __menu-item gap-1.5" data-testid="settings-menu-item" data-profile-menu-action="settings" data-orientation="vertical" data-radix-collection-item="">
+      <div role="menuitem" tabindex="0" class="group __menu-item hoverable gap-1.5" data-testid="settings-menu-item" data-profile-menu-action="settings" data-orientation="vertical" data-radix-collection-item="">
         <div class="flex items-center justify-center [opacity:var(--menu-item-icon-opacity,1)] icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true" class="icon"><use href="#44c6db" fill="currentColor"></use></svg></div>Settings
       </div>
       <div role="separator" aria-orientation="horizontal" class="bg-token-border-default h-px mx-4 my-1"></div>
@@ -335,7 +335,7 @@
 
     return `
       <div class="flex flex-col">
-        <div role="menuitem" id="radix-${accountTriggerId}" aria-haspopup="menu" aria-expanded="false" aria-controls="radix-${accountMenuId}" data-state="closed" tabindex="0" data-has-submenu="" class="group __menu-item bg-transparent! hover:bg-token-interactive-bg-secondary-selected! keyboard-focused:bg-token-interactive-bg-secondary-selected! data-[state=open]:bg-token-interactive-bg-secondary-selected!" data-profile-menu-action="account" data-orientation="vertical" data-radix-collection-item="">
+        <div role="menuitem" id="radix-${accountTriggerId}" aria-haspopup="menu" aria-expanded="false" aria-controls="radix-${accountMenuId}" data-state="closed" tabindex="0" data-has-submenu="" class="group __menu-item hoverable bg-transparent! hover:bg-token-interactive-bg-secondary-selected! keyboard-focused:bg-token-interactive-bg-secondary-selected! data-[state=open]:bg-token-interactive-bg-secondary-selected!" data-profile-menu-action="account" data-orientation="vertical" data-radix-collection-item="">
           <div class="flex min-w-0 items-center gap-1.5">
             <div class="flex items-center justify-center [opacity:var(--menu-item-icon-opacity,1)] icon">${avatarMarkup}</div>
             <div class="min-w-0">
@@ -345,16 +345,16 @@
           </div>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" aria-hidden="true" data-rtl-flip="" class="icon-sm -me-0.25"><use href="#d3876b" fill="currentColor"></use></svg>
         </div>
-        <div role="menuitem" tabindex="0" class="group __menu-item gap-1.5" data-profile-menu-action="upgrade-plan" data-orientation="vertical" data-radix-collection-item=""><div class="flex items-center justify-center [opacity:var(--menu-item-icon-opacity,1)] icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true" class="icon-sm"><use href="#7ad2ce" fill="currentColor"></use></svg></div>Upgrade plan</div>
-        <div role="menuitem" tabindex="0" class="group __menu-item gap-1.5" data-profile-menu-action="personalization" data-orientation="vertical" data-radix-collection-item=""><div class="flex items-center justify-center [opacity:var(--menu-item-icon-opacity,1)] icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true" class="icon"><use href="#306b75" fill="currentColor"></use></svg></div>Personalization</div>
-        <div role="menuitem" tabindex="0" class="group __menu-item gap-1.5" data-profile-menu-action="profile" data-orientation="vertical" data-radix-collection-item=""><div class="flex items-center justify-center [opacity:var(--menu-item-icon-opacity,1)] icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true" class="icon"><use href="#d13764" fill="currentColor"></use></svg></div>Profile</div>
-        <div role="menuitem" tabindex="0" class="group __menu-item gap-1.5" data-testid="settings-menu-item" data-profile-menu-action="settings" data-orientation="vertical" data-radix-collection-item=""><div class="flex items-center justify-center [opacity:var(--menu-item-icon-opacity,1)] icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true" class="icon"><use href="#44c6db" fill="currentColor"></use></svg></div>Settings</div>
+        <div role="menuitem" tabindex="0" class="group __menu-item hoverable gap-1.5" data-profile-menu-action="upgrade-plan" data-orientation="vertical" data-radix-collection-item=""><div class="flex items-center justify-center [opacity:var(--menu-item-icon-opacity,1)] icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true" class="icon-sm"><use href="#7ad2ce" fill="currentColor"></use></svg></div>Upgrade plan</div>
+        <div role="menuitem" tabindex="0" class="group __menu-item hoverable gap-1.5" data-profile-menu-action="personalization" data-orientation="vertical" data-radix-collection-item=""><div class="flex items-center justify-center [opacity:var(--menu-item-icon-opacity,1)] icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true" class="icon"><use href="#306b75" fill="currentColor"></use></svg></div>Personalization</div>
+        <div role="menuitem" tabindex="0" class="group __menu-item hoverable gap-1.5" data-profile-menu-action="profile" data-orientation="vertical" data-radix-collection-item=""><div class="flex items-center justify-center [opacity:var(--menu-item-icon-opacity,1)] icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true" class="icon"><use href="#d13764" fill="currentColor"></use></svg></div>Profile</div>
+        <div role="menuitem" tabindex="0" class="group __menu-item hoverable gap-1.5" data-testid="settings-menu-item" data-profile-menu-action="settings" data-orientation="vertical" data-radix-collection-item=""><div class="flex items-center justify-center [opacity:var(--menu-item-icon-opacity,1)] icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true" class="icon"><use href="#44c6db" fill="currentColor"></use></svg></div>Settings</div>
         <div role="separator" aria-orientation="horizontal" class="bg-token-border-default h-px mx-4 my-1"></div>
-        <div role="menuitem" id="radix-${helpTriggerId}" aria-haspopup="menu" aria-expanded="false" aria-controls="radix-${helpMenuId}" data-state="closed" tabindex="0" data-has-submenu="" class="group __menu-item" data-profile-menu-action="help" data-orientation="vertical" data-radix-collection-item="">
+        <div role="menuitem" id="radix-${helpTriggerId}" aria-haspopup="menu" aria-expanded="false" aria-controls="radix-${helpMenuId}" data-state="closed" tabindex="0" data-has-submenu="" class="group __menu-item hoverable" data-profile-menu-action="help" data-orientation="vertical" data-radix-collection-item="">
           <div class="flex min-w-0 items-center gap-1.5"><div class="flex items-center justify-center [opacity:var(--menu-item-icon-opacity,1)] icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true" class="icon"><use href="#ab0e8b" fill="currentColor"></use></svg></div>Help</div>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" aria-hidden="true" data-rtl-flip="" class="icon-sm -me-0.25"><use href="#d3876b" fill="currentColor"></use></svg>
         </div>
-        <div role="menuitem" id="radix-${logoutTriggerId}" aria-haspopup="menu" aria-expanded="false" aria-controls="radix-${logoutMenuId}" data-state="closed" tabindex="0" data-has-submenu="" class="group __menu-item" data-testid="log-out-menu-item" data-profile-menu-action="logout" data-orientation="vertical" data-radix-collection-item="">
+        <div role="menuitem" id="radix-${logoutTriggerId}" aria-haspopup="menu" aria-expanded="false" aria-controls="radix-${logoutMenuId}" data-state="closed" tabindex="0" data-has-submenu="" class="group __menu-item hoverable" data-testid="log-out-menu-item" data-profile-menu-action="logout" data-orientation="vertical" data-radix-collection-item="">
           <div class="flex min-w-0 items-center gap-1.5"><div class="flex items-center justify-center [opacity:var(--menu-item-icon-opacity,1)] icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" aria-hidden="true" data-rtl-flip="" class="icon"><use href="#06188d" fill="currentColor"></use></svg></div>Log out</div>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" aria-hidden="true" data-rtl-flip="" class="icon-sm -me-0.25"><use href="#d3876b" fill="currentColor"></use></svg>
         </div>
@@ -1131,12 +1131,23 @@
       const triggerRect = profileTrigger.getBoundingClientRect();
       const menuRect = menu.getBoundingClientRect();
       const margin = 8;
-      const isAuthenticated = profileTrigger.getAttribute('data-auth-role') === 'authenticated';
-      const x = isAuthenticated ? 8 : Math.round(Math.max(margin, Math.min(margin, window.innerWidth - menuRect.width - margin)));
-      const y = isAuthenticated ? 301 : Math.round(Math.max(margin, Math.min(triggerRect.top - menuRect.height - 4, window.innerHeight - menuRect.height - margin)));
+      const gap = 4;
+      const banner = document.getElementById('cookie-consent-banner');
+      const bannerRect = banner instanceof HTMLElement && !banner.closest('[hidden]') && window.getComputedStyle(banner).display !== 'none'
+        ? banner.getBoundingClientRect()
+        : null;
+      const bottomBoundary = bannerRect && bannerRect.top > 0
+        ? Math.max(margin, Math.round(bannerRect.top - margin))
+        : Math.max(margin, window.innerHeight - margin);
+      const menuWidth = Math.max(0, Math.round(menuRect.width));
+      const menuHeight = Math.max(0, Math.round(menuRect.height));
+      const x = Math.round(Math.max(margin, Math.min(margin, window.innerWidth - menuWidth - margin)));
+      const preferredY = Math.round(triggerRect.top - menuHeight - gap);
+      const maxY = Math.max(margin, bottomBoundary - menuHeight);
+      const y = Math.max(margin, Math.min(preferredY, maxY));
       const availableWidth = Math.max(0, window.innerWidth - x - margin);
-      const availableHeight = Math.max(0, window.innerHeight - y - margin);
-      const transformOriginY = isAuthenticated ? 288.15 : Math.max(0, Math.round(triggerRect.top - y));
+      const availableHeight = Math.max(160, bottomBoundary - y);
+      const transformOriginY = Math.max(0, Math.round(triggerRect.top - y));
 
       wrapper.style.pointerEvents = isOpen ? 'auto' : 'none';
       wrapper.style.transform = `translate(${x}px, ${y}px)`;
