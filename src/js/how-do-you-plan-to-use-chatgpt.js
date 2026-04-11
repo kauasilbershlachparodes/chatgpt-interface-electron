@@ -12,17 +12,55 @@
     }
   };
 
+  const getSerialization = () => window.MatrixSession && window.MatrixSession.SerializationSecurity
+    ? window.MatrixSession.SerializationSecurity
+    : null;
+
+  const normalizeState = (payload) => {
+    if (!payload || typeof payload !== 'object') return null;
+
+    const selected = typeof payload.selected === 'string' ? payload.selected.trim().slice(0, 80) : '';
+
+    return {
+      selected,
+      skipped: Boolean(payload.skipped),
+      updatedAt: Number.isFinite(payload.updatedAt) ? Number(payload.updatedAt) : Date.now()
+    };
+  };
+
   const readState = () => {
+    const serialization = getSerialization();
+    if (serialization) {
+      return serialization.readStorage(STORAGE_KEY, {
+        storage: 'session',
+        type: 'matrix.onboarding.usage-plan',
+        normalize: normalizeState
+      });
+    }
+
     try {
-      return safeParse(window.sessionStorage.getItem(STORAGE_KEY));
+      return normalizeState(safeParse(window.sessionStorage.getItem(STORAGE_KEY)));
     } catch (_error) {
       return null;
     }
   };
 
   const writeState = (payload) => {
+    const serialization = getSerialization();
+    if (serialization) {
+      serialization.writeStorage(STORAGE_KEY, payload, {
+        storage: 'session',
+        type: 'matrix.onboarding.usage-plan',
+        normalize: normalizeState
+      });
+      return;
+    }
+
     try {
-      window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      const normalized = normalizeState(payload);
+      if (normalized) {
+        window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+      }
     } catch (_error) {
       // noop
     }

@@ -6,15 +6,23 @@
   const ROLE_COOKIE = 'matrix_role';
   const GATE_COOKIE = 'matrix_gate';
   const SESSION_COOKIE = 'matrix_sid';
+  const SESSION_BRIDGE_COOKIE = 'matrix_session_bridge.v1';
   const GUEST_TTL_MS = 2 * 60 * 60 * 1000;
   const AUTH_TTL_MS = 7 * 24 * 60 * 60 * 1000;
   const ATTEMPT_STORAGE_KEY = 'matrix.auth.attempts.v1';
+  const OAUTH_HANDOFF_STORAGE_KEY = 'matrix.oauth.handoff.v1';
   const LEGACY_SESSION_KEYS = ['matrix.session.v1'];
   const LEGACY_PENDING_KEYS = ['matrix.pending.v1'];
   const TRANSIENT_SESSION_KEYS = [
     'matrix.onboarding.what_brings_you.v1',
     'matrix.onboarding.usage_plan.v1'
   ];
+  const MAX_SESSION_BYTES = 16 * 1024;
+  const MAX_PENDING_BYTES = 16 * 1024;
+  const MAX_ATTEMPT_BYTES = 32 * 1024;
+  const MAX_ATTEMPT_ENTRIES = 100;
+  const SERIALIZATION_MAGIC = 'matrix.serialized';
+  const SERIALIZATION_VERSION = 2;
 
   const safeNow = () => Date.now();
 
@@ -51,13 +59,222 @@
     }
   };
 
-  const tryParseJson = (value) => {
+  const getUtf8ByteLength = (value) => {
+    try {
+      return new TextEncoder().encode(String(value || '')).length;
+    } catch (_error) {
+      return String(value || '').length;
+    }
+  };
+
+  const tryParseJson = (value, maxBytes = MAX_PENDING_BYTES) => {
     if (!value || typeof value !== 'string') return null;
+    if (getUtf8ByteLength(value) > maxBytes) return null;
     try {
       return JSON.parse(value);
     } catch (_error) {
       return null;
     }
+  };
+
+  const isSafeEmail = (value) => {
+    const normalized = String(value || '').trim().toLowerCase();
+    return !normalized || (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) && normalized.length <= 254);
+  };
+
+  const isSafeHttpUrl = (value) => {
+    const normalized = String(value || '').trim();
+    if (!normalized) return true;
+    if (/^data:image\//i.test(normalized)) return true;
+
+    try {
+      const parsed = new URL(normalized, window.location.origin);
+      return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+    } catch (_error) {
+      return false;
+    }
+  };
+
+  const toBoundedString = (value, maxLength = 256) => String(value || '').trim().slice(0, maxLength);
+
+  const sanitizeStringArray = (value, maxItems = 6, maxLength = 80) => (
+    Array.isArray(value)
+      ? value.map((entry) => toBoundedString(entry, maxLength)).filter(Boolean).slice(0, maxItems)
+      : []
+  );
+
+  const normalizeEnvelopeType = (value, fallback = 'matrix.generic') => {
+    const normalized = String(value || '').trim().toLowerCase();
+    return /^[a-z0-9._:-]{1,80}$/.test(normalized) ? normalized : fallback;
+  };
+
+  const buildEnvelope = (type, data) => ({
+    __type: String(type || ''),
+    __v: 1,
+    issuedAt: safeNow(),
+    data,
+  });
+
+  const buildSignedEnvelope = (type, data) => {
+    const normalizedType = normalizeEnvelopeType(type);
+    const payload = JSON.stringify(data);
+    const bridge = getSecurityBridge();
+    const signatureInput = `${normalizedType}:${payload}`;
+    let signature = '';
+
+    if (bridge && typeof bridge.signString === 'function') {
+      try {
+        signature = bridge.signString(signatureInput);
+      } catch (_error) {
+        signature = '';
+      }
+    }
+
+    return {
+      __format: SERIALIZATION_MAGIC,
+      __type: normalizedType,
+      __v: SERIALIZATION_VERSION,
+      issuedAt: safeNow(),
+      payload,
+      signature,
+      integrity: signature ? 'hmac-sha256' : 'none'
+    };
+  };
+
+  const unwrapEnvelope = (parsed, type) => {
+    if (!parsed || typeof parsed !== 'object') return null;
+    if (parsed.__type === type && Number(parsed.__v || 0) === 1 && parsed.data && typeof parsed.data === 'object') {
+      return parsed.data;
+    }
+    return parsed;
+  };
+
+  const unwrapSignedEnvelope = (parsed, type, maxBytes = MAX_PENDING_BYTES) => {
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return null;
+    }
+
+    if (parsed.__format !== SERIALIZATION_MAGIC || Number(parsed.__v || 0) !== SERIALIZATION_VERSION) {
+      return null;
+    }
+
+    const actualType = normalizeEnvelopeType(parsed.__type, '');
+    const expectedType = normalizeEnvelopeType(type, '');
+    const payload = typeof parsed.payload === 'string' ? parsed.payload : '';
+    const signature = typeof parsed.signature === 'string' ? parsed.signature : '';
+    const bridge = getSecurityBridge();
+
+    if (!actualType || !payload || (expectedType && actualType !== expectedType)) {
+      return null;
+    }
+
+    if (bridge && typeof bridge.verifySignedString === 'function') {
+      if (!signature || !bridge.verifySignedString(`${actualType}:${payload}`, signature)) {
+        return null;
+      }
+    } else if (signature) {
+      return null;
+    }
+
+    if (getUtf8ByteLength(payload) > maxBytes) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(payload);
+    } catch (_error) {
+      return null;
+    }
+  };
+
+  const normalizeSessionRecord = (value) => {
+    if (!value || typeof value !== 'object') return null;
+
+    const role = value.role === 'authenticated' ? 'authenticated' : value.role === 'guest' ? 'guest' : '';
+    const gate = value.gate === 'allowed' ? 'allowed' : '';
+    const sessionId = toBoundedString(value.sessionId, 96);
+    const createdAt = Number(value.createdAt || 0);
+    const expiresAt = Number(value.expiresAt || 0);
+    const email = String(value.email || '').trim().toLowerCase();
+    const authProvider = value.authProvider === 'google' ? 'google' : value.authProvider === 'email' ? 'email' : '';
+    const avatarUrl = toBoundedString(value.avatarUrl, 2048);
+
+    if (!role || !gate || !sessionId || !Number.isFinite(createdAt) || createdAt <= 0 || !Number.isFinite(expiresAt) || expiresAt <= 0) {
+      return null;
+    }
+
+    if (!isSafeEmail(email) || !isSafeHttpUrl(avatarUrl)) {
+      return null;
+    }
+
+    return {
+      sessionId,
+      gate,
+      createdAt,
+      role,
+      email,
+      authProvider,
+      userId: toBoundedString(value.userId, 128),
+      displayName: toBoundedString(value.displayName, 120),
+      avatarUrl,
+      initials: toBoundedString(value.initials, 4).toUpperCase(),
+      planLabel: toBoundedString(value.planLabel || 'Free', 40) || 'Free',
+      expiresAt,
+    };
+  };
+
+  const normalizePendingAuthRecord = (value) => {
+    if (!value || typeof value !== 'object') return null;
+    const email = String(value.email || '').trim().toLowerCase();
+    if (!isSafeEmail(email)) return null;
+
+    const onboardingPurposes = sanitizeStringArray(
+      Array.isArray(value.onboardingPurposes)
+        ? value.onboardingPurposes
+        : (typeof value.onboardingPurpose === 'string' ? [value.onboardingPurpose] : []),
+      6,
+      80
+    );
+
+    const createdAt = Number(value.createdAt || 0);
+    if (!Number.isFinite(createdAt) || createdAt <= 0) return null;
+
+    return {
+      mode: value.mode === 'signup' ? 'signup' : 'login',
+      email,
+      password: typeof value.password === 'string' ? value.password.slice(0, 256) : '',
+      name: toBoundedString(value.name, 120),
+      age: Number.isFinite(value.age) && value.age >= 0 && value.age <= 130 ? Number(value.age) : null,
+      onboardingPurpose: onboardingPurposes[0] || '',
+      onboardingPurposes,
+      onboardingUsageMode: toBoundedString(value.onboardingUsageMode, 80),
+      createdAt,
+    };
+  };
+
+  const normalizeAttemptStoreRecord = (value) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+    const normalized = {};
+
+    Object.entries(value).slice(0, MAX_ATTEMPT_ENTRIES).forEach(([key, entry]) => {
+      const normalizedKey = toBoundedString(key, 120).toLowerCase();
+      if (!normalizedKey || !entry || typeof entry !== 'object') return;
+
+      normalized[normalizedKey] = {
+        failureCount: Math.max(0, Math.min(50, Number(entry.failureCount || 0))),
+        cooldownReason: toBoundedString(entry.cooldownReason, 40),
+        lockedUntil: Math.max(0, Number(entry.lockedUntil || 0)),
+        updatedAt: Math.max(0, Number(entry.updatedAt || 0)),
+      };
+    });
+
+    return normalized;
+  };
+
+  const getStorageByteLimit = (key) => {
+    if (key === SESSION_STORAGE_KEY || LEGACY_SESSION_KEYS.includes(key)) return MAX_SESSION_BYTES;
+    if (key === ATTEMPT_STORAGE_KEY) return MAX_ATTEMPT_BYTES;
+    return MAX_PENDING_BYTES;
   };
 
   const getSecurityBridge = () =>
@@ -93,6 +310,44 @@
     }
   };
 
+  const deserializeSerializedValue = (raw, options = {}) => {
+    if (!raw || typeof raw !== 'string') return null;
+
+    const maxBytes = Number.isFinite(options.maxBytes) && options.maxBytes > 0
+      ? Number(options.maxBytes)
+      : MAX_PENDING_BYTES;
+    const envelopeType = typeof options.type === 'string' ? options.type : '';
+    const normalize = typeof options.normalize === 'function' ? options.normalize : ((value) => value);
+
+    const opened = openValue(raw);
+    if (!opened || getUtf8ByteLength(opened) > maxBytes) {
+      return null;
+    }
+
+    const parsed = tryParseJson(opened, maxBytes);
+    const signedValue = unwrapSignedEnvelope(parsed, envelopeType, maxBytes);
+    if (signedValue !== null) {
+      return normalize(signedValue);
+    }
+
+    const legacyValue = unwrapEnvelope(parsed, envelopeType);
+    return normalize(legacyValue);
+  };
+
+  const serializeSignedValue = (value, options = {}) => {
+    const envelopeType = typeof options.type === 'string' && options.type ? options.type : 'matrix.generic';
+    const normalized = typeof options.normalize === 'function' ? options.normalize(value) : value;
+    if (normalized == null || normalized === false || normalized === '') {
+      return '';
+    }
+
+    try {
+      return sealValue(buildSignedEnvelope(envelopeType, normalized));
+    } catch (_error) {
+      return '';
+    }
+  };
+
   const readJsonEnvelope = (key, options = {}) => {
     const storageKind = options.storage === 'session' ? 'session' : 'local';
     const legacyKeys = Array.isArray(options.legacyKeys) ? options.legacyKeys : [];
@@ -100,16 +355,27 @@
 
     for (const candidate of candidates) {
       const raw = safeStorageGet(candidate, storageKind);
-      if (!raw) continue;
-      const opened = openValue(raw);
-      const parsed = tryParseJson(opened);
-      if (parsed && typeof parsed === 'object') {
-        if (candidate !== key) {
-          safeStorageSet(key, sealValue(parsed), storageKind);
-          safeStorageRemove(candidate, storageKind);
-        }
-        return parsed;
+      if (!raw || getUtf8ByteLength(raw) > getStorageByteLimit(candidate)) {
+        safeStorageRemove(candidate, storageKind);
+        continue;
       }
+
+      const normalized = deserializeSerializedValue(raw, {
+        ...options,
+        maxBytes: getStorageByteLimit(candidate)
+      });
+
+      if (!normalized) {
+        safeStorageRemove(candidate, storageKind);
+        continue;
+      }
+
+      if (candidate !== key) {
+        writeJsonEnvelope(key, normalized, { ...options, storage: storageKind });
+        safeStorageRemove(candidate, storageKind);
+      }
+
+      return normalized;
     }
 
     return null;
@@ -117,7 +383,12 @@
 
   const writeJsonEnvelope = (key, value, options = {}) => {
     const storageKind = options.storage === 'session' ? 'session' : 'local';
-    return safeStorageSet(key, sealValue(value), storageKind);
+    const serialized = serializeSignedValue(value, options);
+    if (!serialized) {
+      return false;
+    }
+
+    return safeStorageSet(key, serialized, storageKind);
   };
 
   const clearEnvelope = (key, options = {}) => {
@@ -334,23 +605,79 @@
     return '';
   };
 
-  const setCookie = (name, value, maxAgeSeconds) => {
+  const setCookie = (name, value, maxAgeSeconds, sameSite = 'Strict') => {
     try {
       const secureFlag = window.location.protocol === 'https:' ? '; Secure' : '';
-      document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; Max-Age=${maxAgeSeconds}; Path=/; SameSite=Strict${secureFlag}`;
+      const normalizedSameSite = String(sameSite || 'Strict').trim() || 'Strict';
+      document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)}; Max-Age=${maxAgeSeconds}; Path=/; SameSite=${normalizedSameSite}${secureFlag}`;
     } catch (_error) {
       // noop
     }
   };
 
-  const clearCookie = (name) => {
+  const clearCookie = (name, sameSite = 'Strict') => {
     try {
       const secureFlag = window.location.protocol === 'https:' ? '; Secure' : '';
-      document.cookie = `${encodeURIComponent(name)}=; Max-Age=0; Path=/; SameSite=Strict${secureFlag}`;
+      const normalizedSameSite = String(sameSite || 'Strict').trim() || 'Strict';
+      document.cookie = `${encodeURIComponent(name)}=; Max-Age=0; Path=/; SameSite=${normalizedSameSite}${secureFlag}`;
     } catch (_error) {
       // noop
     }
   };
+
+  const readSerializedCookie = (name, options = {}) => {
+    const raw = getCookieValue(name);
+    if (!raw) return null;
+
+    return deserializeSerializedValue(raw, {
+      ...options,
+      maxBytes: Number.isFinite(options.maxBytes) && options.maxBytes > 0 ? options.maxBytes : 4096
+    });
+  };
+
+  const writeSerializedCookie = (name, value, options = {}) => {
+    const maxAgeSeconds = Math.max(1, Number(options.maxAgeSeconds || 0));
+    const sameSite = options.sameSite === 'Lax' ? 'Lax' : options.sameSite === 'None' ? 'None' : 'Strict';
+    const serialized = serializeSignedValue(value, options);
+
+    if (!serialized || getUtf8ByteLength(serialized) > 3800) {
+      return false;
+    }
+
+    setCookie(name, serialized, maxAgeSeconds, sameSite);
+    return true;
+  };
+
+  const normalizeSessionCookieRecord = (value) => {
+    if (!value || typeof value !== 'object') return null;
+
+    const role = value.role === 'authenticated' ? 'authenticated' : value.role === 'guest' ? 'guest' : '';
+    const gate = value.gate === 'allowed' ? 'allowed' : '';
+    const sessionId = toBoundedString(value.sessionId, 96);
+
+    if (!role || !gate || !sessionId) {
+      return null;
+    }
+
+    return {
+      role,
+      gate,
+      sessionId
+    };
+  };
+
+  const SerializationSecurity = Object.freeze({
+    serialize: (type, value, options = {}) => serializeSignedValue(value, { ...options, type }),
+    deserialize: (raw, options = {}) => deserializeSerializedValue(raw, options),
+    readStorage: (key, options = {}) => readJsonEnvelope(key, options),
+    writeStorage: (key, value, options = {}) => writeJsonEnvelope(key, value, options),
+    clearStorage: (key, options = {}) => clearEnvelope(key, options),
+    readCookie: (name, options = {}) => readSerializedCookie(name, options),
+    writeCookie: (name, value, options = {}) => writeSerializedCookie(name, value, options),
+    clearCookie: (name, sameSite = 'Strict') => clearCookie(name, sameSite),
+    open: (raw) => openValue(typeof raw === 'string' ? raw : ''),
+    seal: (raw) => sealValue(typeof raw === 'string' ? raw : JSON.stringify(raw ?? ''))
+  });
 
   const createSessionId = () => {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -361,16 +688,28 @@
 
   const mirrorSessionCookies = (session) => {
     if (!session) {
-      clearCookie(ROLE_COOKIE);
-      clearCookie(GATE_COOKIE);
-      clearCookie(SESSION_COOKIE);
+      clearCookie(SESSION_BRIDGE_COOKIE);
+      clearCookie(ROLE_COOKIE, 'Lax');
+      clearCookie(GATE_COOKIE, 'Lax');
+      clearCookie(SESSION_COOKIE, 'Lax');
       return;
     }
 
     const maxAge = Math.max(1, Math.floor((session.expiresAt - safeNow()) / 1000));
-    setCookie(ROLE_COOKIE, session.role, maxAge);
-    setCookie(GATE_COOKIE, 'allowed', maxAge);
-    setCookie(SESSION_COOKIE, session.sessionId || '', maxAge);
+    writeSerializedCookie(SESSION_BRIDGE_COOKIE, {
+      role: session.role,
+      gate: 'allowed',
+      sessionId: session.sessionId || ''
+    }, {
+      type: 'matrix.session.cookie',
+      normalize: normalizeSessionCookieRecord,
+      maxAgeSeconds: maxAge,
+      sameSite: 'Lax'
+    });
+
+    setCookie(ROLE_COOKIE, session.role, maxAge, 'Lax');
+    setCookie(GATE_COOKIE, 'allowed', maxAge, 'Lax');
+    setCookie(SESSION_COOKIE, session.sessionId || '', maxAge, 'Lax');
   };
 
   const notifySessionUpdated = (detail = {}) => {
@@ -382,10 +721,20 @@
   };
 
   const persistSession = (session) => {
-    writeJsonEnvelope(SESSION_STORAGE_KEY, session, { storage: 'local' });
-    mirrorSessionCookies(session);
-    notifySessionUpdated({ state: 'authenticated', role: session?.role || '' });
-    return session;
+    const normalizedSession = normalizeSessionRecord(session);
+    if (!normalizedSession) {
+      clearSession();
+      return null;
+    }
+
+    writeJsonEnvelope(SESSION_STORAGE_KEY, normalizedSession, {
+      storage: 'local',
+      type: 'matrix.session',
+      normalize: normalizeSessionRecord
+    });
+    mirrorSessionCookies(normalizedSession);
+    notifySessionUpdated({ state: 'authenticated', role: normalizedSession.role || '' });
+    return normalizedSession;
   };
 
   const clearSession = () => {
@@ -401,27 +750,74 @@
   };
 
   const normalizeSession = (session) => {
-    if (!session || typeof session !== 'object') return null;
-    if (!session.role || !session.expiresAt || !session.sessionId) return null;
-    if (session.expiresAt <= safeNow()) {
+    const normalized = normalizeSessionRecord(session);
+    if (!normalized) return null;
+    if (normalized.expiresAt <= safeNow()) {
       clearSession();
       return null;
     }
-    return session;
+    return normalized;
   };
 
-  const getSession = () => normalizeSession(readJsonEnvelope(SESSION_STORAGE_KEY, {
-    storage: 'local',
-    legacyKeys: LEGACY_SESSION_KEYS
-  }));
+  const getSession = () => {
+    const session = normalizeSession(readJsonEnvelope(SESSION_STORAGE_KEY, {
+      storage: 'local',
+      legacyKeys: LEGACY_SESSION_KEYS,
+      type: 'matrix.session',
+      normalize: normalizeSessionRecord
+    }));
+
+    if (!session || session.role !== 'authenticated' || !/^https?:$/.test(window.location.protocol)) {
+      return session;
+    }
+
+    const bridgeCookie = readSerializedCookie(SESSION_BRIDGE_COOKIE, {
+      type: 'matrix.session.cookie',
+      normalize: normalizeSessionCookieRecord,
+      maxBytes: 4096
+    });
+
+    if (bridgeCookie) {
+      if (bridgeCookie.role === session.role && bridgeCookie.gate === session.gate && bridgeCookie.sessionId === session.sessionId) {
+        return session;
+      }
+
+      clearSession();
+      clearPendingAuth();
+      return null;
+    }
+
+    const roleCookie = getCookieValue(ROLE_COOKIE);
+    const gateCookie = getCookieValue(GATE_COOKIE);
+    const sessionCookie = getCookieValue(SESSION_COOKIE);
+    const hasFullLegacyCookieState = Boolean(roleCookie && gateCookie && sessionCookie);
+
+    if (hasFullLegacyCookieState) {
+      if (roleCookie === session.role && gateCookie === session.gate && sessionCookie === session.sessionId) {
+        return session;
+      }
+
+      clearSession();
+      clearPendingAuth();
+      return null;
+    }
+
+    clearSession();
+    clearPendingAuth();
+    return null;
+  };
 
   const getPendingAuth = () => {
     const payload = readJsonEnvelope(PENDING_STORAGE_KEY, {
       storage: 'session',
-      legacyKeys: LEGACY_PENDING_KEYS
+      legacyKeys: LEGACY_PENDING_KEYS,
+      type: 'matrix.pending',
+      normalize: normalizePendingAuthRecord
     }) || readJsonEnvelope(PENDING_STORAGE_KEY, {
       storage: 'local',
-      legacyKeys: LEGACY_PENDING_KEYS
+      legacyKeys: LEGACY_PENDING_KEYS,
+      type: 'matrix.pending',
+      normalize: normalizePendingAuthRecord
     });
 
     if (!payload || typeof payload !== 'object') return null;
@@ -459,7 +855,11 @@
       createdAt: safeNow()
     };
 
-    writeJsonEnvelope(PENDING_STORAGE_KEY, nextValue, { storage: 'session' });
+    writeJsonEnvelope(PENDING_STORAGE_KEY, nextValue, {
+      storage: 'session',
+      type: 'matrix.pending',
+      normalize: normalizePendingAuthRecord
+    });
     clearEnvelope(PENDING_STORAGE_KEY, { storage: 'local', legacyKeys: LEGACY_PENDING_KEYS });
     return nextValue;
   };
@@ -474,11 +874,34 @@
       return;
     }
 
+    const bridgeCookie = readSerializedCookie(SESSION_BRIDGE_COOKIE, {
+      type: 'matrix.session.cookie',
+      normalize: normalizeSessionCookieRecord,
+      maxBytes: 4096
+    });
+
+    if (bridgeCookie) {
+      if (session.role !== bridgeCookie.role || session.gate !== bridgeCookie.gate || session.sessionId !== bridgeCookie.sessionId) {
+        clearSession();
+        clearPendingAuth();
+      }
+      return;
+    }
+
     const roleCookie = getCookieValue(ROLE_COOKIE);
     const gateCookie = getCookieValue(GATE_COOKIE);
     const sessionCookie = getCookieValue(SESSION_COOKIE);
+    const hasLegacyCookieState = Boolean(roleCookie || gateCookie || sessionCookie);
 
-    if (!roleCookie || !gateCookie || !sessionCookie || session.role !== roleCookie || session.sessionId !== sessionCookie) {
+    if (!hasLegacyCookieState) {
+      if (session.role === 'authenticated') {
+        clearSession();
+        clearPendingAuth();
+      }
+      return;
+    }
+
+    if (!roleCookie || !gateCookie || !sessionCookie || session.role !== roleCookie || session.gate !== gateCookie || session.sessionId !== sessionCookie) {
       clearSession();
       clearPendingAuth();
     }
@@ -521,6 +944,32 @@
     ...base
   });
 
+
+
+const consumeOAuthHandoff = () => {
+  const rawValue = safeStorageGet(OAUTH_HANDOFF_STORAGE_KEY, 'local');
+  clearEnvelope(OAUTH_HANDOFF_STORAGE_KEY, { storage: 'local' });
+  if (!rawValue || getUtf8ByteLength(rawValue) > MAX_SESSION_BYTES) {
+    return null;
+  }
+
+  const serializedSnapshot = deserializeSerializedValue(rawValue, {
+    type: 'matrix.oauth.handoff',
+    normalize: normalizeSessionRecord,
+    maxBytes: MAX_SESSION_BYTES
+  });
+  if (serializedSnapshot) {
+    return serializedSnapshot;
+  }
+
+  const parsed = tryParseJson(rawValue, MAX_SESSION_BYTES);
+  if (!parsed || typeof parsed !== 'object') {
+    return null;
+  }
+
+  return normalizeSessionRecord(parsed.sessionSnapshot || parsed);
+};
+
   const startGuestSession = () => {
     clearPendingAuth();
     return persistSession(buildSessionPayload({
@@ -556,6 +1005,16 @@
     }));
   };
 
+  const restoreSessionSnapshot = (snapshot) => {
+    const normalizedSnapshot = normalizeSessionRecord(snapshot);
+    if (!normalizedSnapshot) {
+      return null;
+    }
+
+    clearPendingAuth();
+    return persistSession(normalizedSnapshot);
+  };
+
   const canAccessProtectedUi = () => {
     const session = getSession();
     return Boolean(session && (session.role === 'guest' || session.role === 'authenticated'));
@@ -566,13 +1025,18 @@
     return mode === 'signup' ? 'signup' : 'login';
   };
 
-  const readAttemptStore = () => {
-    const parsed = tryParseJson(safeStorageGet(ATTEMPT_STORAGE_KEY, 'local'));
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  };
+  const readAttemptStore = () => readJsonEnvelope(ATTEMPT_STORAGE_KEY, {
+    storage: 'local',
+    type: 'matrix.attempts',
+    normalize: normalizeAttemptStoreRecord
+  }) || {};
 
   const writeAttemptStore = (value) => {
-    safeStorageSet(ATTEMPT_STORAGE_KEY, JSON.stringify(value || {}), 'local');
+    writeJsonEnvelope(ATTEMPT_STORAGE_KEY, value || {}, {
+      storage: 'local',
+      type: 'matrix.attempts',
+      normalize: normalizeAttemptStoreRecord
+    });
   };
 
   const normalizeAttemptIdentifier = (scope, identifier = '') =>
@@ -737,12 +1201,18 @@
     }
   }
 
+  const pendingOAuthHandoff = consumeOAuthHandoff();
+  if (pendingOAuthHandoff) {
+    restoreSessionSnapshot(pendingOAuthHandoff);
+  }
+
   reconcileSessionWithCookies();
 
   window.MatrixSession = {
     AUTH_MAX_PASSWORD_LENGTH: 72,
     AUTH_MAX_EMAIL_LENGTH: 254,
     AUTH_OTP_LENGTH: 6,
+    SerializationSecurity,
     getModeFromLocation,
     setPendingAuth,
     getPendingAuth,
@@ -751,6 +1221,7 @@
     clearSession,
     startGuestSession,
     startAuthenticatedSession,
+    restoreSessionSnapshot,
     canAccessProtectedUi,
     getAttemptStatus,
     registerFailedAttempt,

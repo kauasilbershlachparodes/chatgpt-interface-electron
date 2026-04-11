@@ -6,7 +6,35 @@
   const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
   const VALID_SIDEBAR_STATES = new Set(['expanded', 'collapsed']);
 
+  const getSerialization = () => window.MatrixSession && window.MatrixSession.SerializationSecurity
+    ? window.MatrixSession.SerializationSecurity
+    : null;
+
+  const normalizeSidebarStateRecord = (payload) => {
+    if (!payload || typeof payload !== 'object') return null;
+    const state = VALID_SIDEBAR_STATES.has(payload.state) ? payload.state : '';
+    if (!state) {
+      return null;
+    }
+
+    return {
+      state,
+      updatedAt: Number.isFinite(payload.updatedAt) ? Number(payload.updatedAt) : Date.now()
+    };
+  };
+
   const readSidebarStateCookie = () => {
+    const serialization = getSerialization();
+    if (serialization) {
+      const record = serialization.readCookie(SIDEBAR_COOKIE_KEY, {
+        type: 'stage.sidebar.state.cookie',
+        normalize: normalizeSidebarStateRecord
+      });
+      if (record && VALID_SIDEBAR_STATES.has(record.state)) {
+        return record.state;
+      }
+    }
+
     const cookies = String(document.cookie || '').split(';');
     for (const rawCookie of cookies) {
       const cookie = rawCookie.trim();
@@ -24,6 +52,18 @@
   };
 
   const readPersistedSidebarState = () => {
+    const serialization = getSerialization();
+    if (serialization) {
+      const record = serialization.readStorage(SIDEBAR_STORAGE_KEY, {
+        storage: 'local',
+        type: 'stage.sidebar.state',
+        normalize: normalizeSidebarStateRecord
+      });
+      if (record && VALID_SIDEBAR_STATES.has(record.state)) {
+        return record.state;
+      }
+    }
+
     try {
       const storedValue = window.localStorage.getItem(SIDEBAR_STORAGE_KEY);
       if (VALID_SIDEBAR_STATES.has(storedValue)) {
@@ -38,6 +78,23 @@
 
   const persistSidebarState = (state) => {
     if (!VALID_SIDEBAR_STATES.has(state)) {
+      return;
+    }
+
+    const payload = { state, updatedAt: Date.now() };
+    const serialization = getSerialization();
+    if (serialization) {
+      serialization.writeStorage(SIDEBAR_STORAGE_KEY, payload, {
+        storage: 'local',
+        type: 'stage.sidebar.state',
+        normalize: normalizeSidebarStateRecord
+      });
+      serialization.writeCookie(SIDEBAR_COOKIE_KEY, payload, {
+        type: 'stage.sidebar.state.cookie',
+        normalize: normalizeSidebarStateRecord,
+        maxAgeSeconds: SIDEBAR_COOKIE_MAX_AGE,
+        sameSite: 'Lax'
+      });
       return;
     }
 

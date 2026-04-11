@@ -31,6 +31,10 @@
     return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   };
 
+  const getSerialization = () => window.MatrixSession && window.MatrixSession.SerializationSecurity
+    ? window.MatrixSession.SerializationSecurity
+    : null;
+
   const readCookie = (name) => {
     const cookies = document.cookie ? document.cookie.split('; ') : [];
     const prefix = `${name}=`;
@@ -42,7 +46,35 @@
     document.cookie = `${name}=${encodeURIComponent(value)}; Max-Age=${maxAgeSeconds}; Path=/; SameSite=Lax`;
   };
 
+  const normalizeDisclaimerState = (payload) => {
+    if (!payload || typeof payload !== 'object') return null;
+    return {
+      dismissed: Boolean(payload.dismissed),
+      updatedAt: Number.isFinite(payload.updatedAt) ? Number(payload.updatedAt) : Date.now()
+    };
+  };
+
   const isDisclaimerDismissed = () => {
+    const serialization = getSerialization();
+    if (serialization) {
+      const localState = serialization.readStorage(DISCLAIMER_STORAGE_KEY, {
+        storage: 'local',
+        type: 'stage.thread.disclaimer',
+        normalize: normalizeDisclaimerState
+      });
+      if (localState && localState.dismissed) {
+        return true;
+      }
+
+      const cookieState = serialization.readCookie(DISCLAIMER_COOKIE_KEY, {
+        type: 'stage.thread.disclaimer.cookie',
+        normalize: normalizeDisclaimerState
+      });
+      if (cookieState && cookieState.dismissed) {
+        return true;
+      }
+    }
+
     try {
       if (window.localStorage?.getItem(DISCLAIMER_STORAGE_KEY) === 'true') {
         return true;
@@ -53,6 +85,23 @@
   };
 
   const persistDisclaimerDismissed = () => {
+    const payload = { dismissed: true, updatedAt: Date.now() };
+    const serialization = getSerialization();
+    if (serialization) {
+      serialization.writeStorage(DISCLAIMER_STORAGE_KEY, payload, {
+        storage: 'local',
+        type: 'stage.thread.disclaimer',
+        normalize: normalizeDisclaimerState
+      });
+      serialization.writeCookie(DISCLAIMER_COOKIE_KEY, payload, {
+        type: 'stage.thread.disclaimer.cookie',
+        normalize: normalizeDisclaimerState,
+        maxAgeSeconds: 60 * 60 * 24 * 365,
+        sameSite: 'Lax'
+      });
+      return;
+    }
+
     try {
       window.localStorage?.setItem(DISCLAIMER_STORAGE_KEY, 'true');
     } catch {}

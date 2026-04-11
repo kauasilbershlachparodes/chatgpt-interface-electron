@@ -32,7 +32,31 @@
     navigateToAuth(mode);
   };
 
+  const getSerialization = () => window.MatrixSession && window.MatrixSession.SerializationSecurity
+    ? window.MatrixSession.SerializationSecurity
+    : null;
+
+  const normalizeWebSearchState = (payload) => {
+    if (!payload || typeof payload !== 'object') return null;
+    return {
+      enabled: Boolean(payload.enabled),
+      updatedAt: Number.isFinite(payload.updatedAt) ? Number(payload.updatedAt) : Date.now()
+    };
+  };
+
   const readWebSearchEnabled = () => {
+    const serialization = getSerialization();
+    if (serialization) {
+      const record = serialization.readStorage(WEB_SEARCH_STORAGE_KEY, {
+        storage: 'local',
+        type: 'stage.composer.web-search',
+        normalize: normalizeWebSearchState
+      });
+      if (record) {
+        return Boolean(record.enabled);
+      }
+    }
+
     try {
       return window.localStorage.getItem(WEB_SEARCH_STORAGE_KEY) === 'true';
     } catch (_error) {
@@ -41,6 +65,19 @@
   };
 
   const writeWebSearchEnabled = (value) => {
+    const serialization = getSerialization();
+    if (serialization) {
+      serialization.writeStorage(WEB_SEARCH_STORAGE_KEY, {
+        enabled: Boolean(value),
+        updatedAt: Date.now()
+      }, {
+        storage: 'local',
+        type: 'stage.composer.web-search',
+        normalize: normalizeWebSearchState
+      });
+      return;
+    }
+
     try {
       window.localStorage.setItem(WEB_SEARCH_STORAGE_KEY, value ? 'true' : 'false');
     } catch (_error) {

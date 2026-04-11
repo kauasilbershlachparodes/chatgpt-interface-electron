@@ -5,13 +5,26 @@
   const AUTH_PAGE_ABOUT = 'about-you';
 
   const readInlineConfig = () => window.__MATRIX_SUPABASE_CONFIG__ || window.__ILLUMINATI_SUPABASE_CONFIG__ || {};
-  const normalizeConfig = (raw = {}) => ({
-    supabaseUrl: String(raw.supabaseUrl || '').trim(),
-    anonKey: String(raw.anonKey || raw.supabaseKey || '').trim(),
-    otpLength: Number.parseInt(String(raw.otpLength || 6), 10) || 6,
-    emailMaxLength: Number.parseInt(String(raw.emailMaxLength || 254), 10) || 254,
-    passwordMaxLength: Number.parseInt(String(raw.passwordMaxLength || 72), 10) || 72
-  });
+  const isSafeSupabaseUrl = (value) => {
+    try {
+      const parsed = new URL(String(value || '').trim());
+      return parsed.protocol === 'https:' || (parsed.protocol === 'http:' && /^127\.0\.0\.1$|^localhost$/i.test(parsed.hostname));
+    } catch (_error) {
+      return false;
+    }
+  };
+
+  const normalizeConfig = (raw = {}) => {
+    const supabaseUrl = String(raw.supabaseUrl || '').trim();
+    const anonKey = String(raw.anonKey || raw.supabaseKey || '').trim();
+    return {
+      supabaseUrl: isSafeSupabaseUrl(supabaseUrl) ? supabaseUrl : '',
+      anonKey: anonKey && anonKey.length <= 4096 ? anonKey : '',
+      otpLength: Number.parseInt(String(raw.otpLength || 6), 10) || 6,
+      emailMaxLength: Number.parseInt(String(raw.emailMaxLength || 254), 10) || 254,
+      passwordMaxLength: Number.parseInt(String(raw.passwordMaxLength || 72), 10) || 72
+    };
+  };
 
   const loadConfigFromSameOrigin = async () => {
     const candidates = ['/auth.config.json', '/matrix-auth.config.json', 'auth.config.json', 'matrix-auth.config.json'];
@@ -76,7 +89,7 @@
           persistSession: false,
           autoRefreshToken: false,
           detectSessionInUrl: false,
-          flowType: 'implicit'
+          flowType: 'pkce'
         }
       })
     : null;
@@ -246,6 +259,102 @@
 
   const isPopupRequest = () => getSearchParam('popup') === '1';
 
+  const getOAuthPopupMessageVerifier = () => (
+    window.electronAPI && window.electronAPI.security && typeof window.electronAPI.security.verifySignedString === 'function'
+      ? window.electronAPI.security.verifySignedString
+      : null
+  );
+
+  const normalizeSessionSnapshot = (value = {}) => {
+    if (!value || typeof value !== 'object') return null;
+
+    const role = value.role === 'authenticated' ? 'authenticated' : value.role === 'guest' ? 'guest' : '';
+    const gate = value.gate === 'allowed' ? 'allowed' : '';
+    const sessionId = String(value.sessionId || '').trim().slice(0, 96);
+    const createdAt = Number(value.createdAt || 0);
+    const expiresAt = Number(value.expiresAt || 0);
+
+    if (!role || !gate || !sessionId || !Number.isFinite(createdAt) || createdAt <= 0 || !Number.isFinite(expiresAt) || expiresAt <= 0) {
+      return null;
+    }
+
+    return {
+      role,
+      gate,
+      sessionId,
+      email: typeof value.email === 'string' ? value.email.trim().toLowerCase().slice(0, 254) : '',
+      authProvider: value.authProvider === 'google' ? 'google' : value.authProvider === 'email' ? 'email' : '',
+      userId: typeof value.userId === 'string' ? value.userId.trim().slice(0, 128) : '',
+      displayName: typeof value.displayName === 'string' ? value.displayName.trim().slice(0, 120) : '',
+      avatarUrl: typeof value.avatarUrl === 'string' ? value.avatarUrl.trim().slice(0, 2048) : '',
+      initials: typeof value.initials === 'string' ? value.initials.trim().slice(0, 4).toUpperCase() : '',
+      planLabel: typeof value.planLabel === 'string' ? value.planLabel.trim().slice(0, 40) : 'Free',
+      createdAt,
+      expiresAt
+    };
+  };
+
+  const normalizeOAuthPopupPayload = (payload = {}) => {
+    if (!payload || typeof payload !== 'object') return null;
+    const type = String(payload.type || '').trim();
+    const provider = String(payload.provider || '').trim().toLowerCase();
+    if (!/^matrix:oauth:(complete|error)$/.test(type) || provider !== 'google') {
+      return null;
+    }
+
+    const normalized = {
+      type,
+      provider,
+      ts: Number(payload.ts || 0) || 0,
+    };
+
+    if (typeof payload.email === 'string' && payload.email.trim()) {
+      normalized.email = payload.email.trim().toLowerCase().slice(0, 254);
+    }
+
+    if (typeof payload.message === 'string' && payload.message.trim()) {
+      normalized.message = payload.message.trim().slice(0, 300);
+    }
+
+    const sessionSnapshot = normalizeSessionSnapshot(payload.sessionSnapshot);
+    if (sessionSnapshot) {
+      normalized.sessionSnapshot = sessionSnapshot;
+    }
+
+    return normalized;
+  };
+
+  const parseOAuthPopupPayload = (rawValue) => {
+    if (!rawValue) return null;
+
+    try {
+      const parsed = typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue;
+      if (!parsed || typeof parsed !== 'object') return null;
+
+      if (typeof parsed.payload === 'string' && typeof parsed.signature === 'string') {
+        const verifySignedString = getOAuthPopupMessageVerifier();
+        if (verifySignedString && !verifySignedString(parsed.payload, parsed.signature)) {
+          return null;
+        }
+
+        const nested = JSON.parse(parsed.payload);
+        return normalizeOAuthPopupPayload(nested);
+      }
+
+      return normalizeOAuthPopupPayload(parsed);
+    } catch (_error) {
+      return null;
+    }
+  };
+
+  const clearStoredOAuthPopupResult = () => {
+    try {
+      window.localStorage.removeItem(OAUTH_POPUP_STORAGE_KEY);
+    } catch (_error) {
+      // noop
+    }
+  };
+
   const getOAuthPopupFeatures = () => {
     const popupWidth = 520;
     const popupHeight = 720;
@@ -290,13 +399,33 @@
   };
 
   const handleOAuthPopupResult = (payload) => {
-    if (!payload || payload.provider !== 'google') {
+    const normalized = normalizeOAuthPopupPayload(payload);
+    if (!normalized || normalized.provider !== 'google') {
       return;
+    }
+
+    clearStoredOAuthPopupResult();
+
+    if (normalized.type === 'matrix:oauth:error' && normalized.message) {
+      showMessage(normalized.message);
+      return;
+    }
+
+    if (normalized.sessionSnapshot && matrix && typeof matrix.restoreSessionSnapshot === 'function') {
+      matrix.restoreSessionSnapshot(normalized.sessionSnapshot);
     }
 
     if (getPageName() !== 'index') {
       window.location.href = 'index.html';
+      return;
     }
+
+    if (matrix && typeof matrix.getSession === 'function' && matrix.getSession()?.role === 'authenticated') {
+      window.location.reload();
+      return;
+    }
+
+    window.location.reload();
   };
 
   window.addEventListener('message', (event) => {
@@ -304,22 +433,52 @@
       return;
     }
 
-    if (event.data && event.data.type === 'matrix:oauth:complete') {
-      handleOAuthPopupResult(event.data);
+    const normalized = parseOAuthPopupPayload(event.data);
+    if (!normalized) {
+      return;
     }
+
+    handleOAuthPopupResult(normalized);
   });
+
+
+
+const processStoredOAuthPopupResult = () => {
+  let rawValue = '';
+  try {
+    rawValue = window.localStorage.getItem(OAUTH_POPUP_STORAGE_KEY) || '';
+  } catch (_error) {
+    rawValue = '';
+  }
+
+  if (!rawValue) {
+    return;
+  }
+
+  const normalized = parseOAuthPopupPayload(rawValue);
+  if (!normalized) {
+    clearStoredOAuthPopupResult();
+    return;
+  }
+
+  handleOAuthPopupResult(normalized);
+};
 
   window.addEventListener('storage', (event) => {
     if (event.key !== OAUTH_POPUP_STORAGE_KEY || !event.newValue) {
       return;
     }
 
-    try {
-      handleOAuthPopupResult(JSON.parse(event.newValue));
-    } catch (_error) {
-      // noop
+    const normalized = parseOAuthPopupPayload(event.newValue);
+    if (!normalized) {
+      clearStoredOAuthPopupResult();
+      return;
     }
+
+    handleOAuthPopupResult(normalized);
   });
+
+  processStoredOAuthPopupResult();
 
   const shouldPreferPopupOAuth = (provider) => {
     if (provider !== 'google') return false;
