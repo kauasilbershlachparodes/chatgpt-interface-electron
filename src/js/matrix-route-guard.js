@@ -21,7 +21,12 @@
       signupButton.addEventListener('click', () => {
         matrix.clearPendingAuth();
         matrix.setPendingAuth({ mode: 'signup', email: '' });
-        window.location.href = 'log-in-or-create-account.html?mode=signup';
+        window.location.href =
+          'what-brings-you-to-chatgpt.html?next=' +
+          encodeURIComponent(
+            'how-do-you-plan-to-use-chatgpt.html?next=' +
+              encodeURIComponent('log-in-or-create-account.html?mode=signup')
+          );
       });
     }
 

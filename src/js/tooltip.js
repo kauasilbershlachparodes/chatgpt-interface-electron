@@ -558,6 +558,10 @@
         return;
       }
 
+      if (instance.owner === 'composer-plus-btn' && instance.button.getAttribute('aria-expanded') === 'true') {
+        return;
+      }
+
       window.clearTimeout(instance.openTimer);
       window.clearTimeout(instance.closeTimer);
       instance.closeTimer = null;

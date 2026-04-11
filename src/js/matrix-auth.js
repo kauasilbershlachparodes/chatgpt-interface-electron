@@ -1,36 +1,90 @@
-(() => {
-  const AUTH_PAGE_EMAIL = 'log-in-or-create-account.html';
-  const AUTH_PAGE_PASSWORD = 'create-account-password.html';
-  const AUTH_PAGE_VERIFY = 'email-verification.html';
-  const DEFAULT_PROJECT_URL = 'https://xkkrbnxqtrfjzbasvocz.supabase.co';
-  const DEFAULT_ANON_KEY = 'sb_publishable_MhEwBmkNjTFAMSZniI5XzQ_45tNsIYX';
+(async () => {
+  const AUTH_PAGE_EMAIL = 'log-in-or-create-account';
+  const AUTH_PAGE_PASSWORD = 'create-account-password';
+  const AUTH_PAGE_VERIFY = 'email-verification';
+  const AUTH_PAGE_ABOUT = 'about-you';
 
-  const getConfig = () => {
-    const bridgeConfig = window.electronAPI && window.electronAPI.authConfig ? window.electronAPI.authConfig : {};
-    const inlineConfig = window.__MATRIX_SUPABASE_CONFIG__ || window.__ILLUMINATI_SUPABASE_CONFIG__ || {};
+  const readInlineConfig = () => window.__MATRIX_SUPABASE_CONFIG__ || window.__ILLUMINATI_SUPABASE_CONFIG__ || {};
+  const normalizeConfig = (raw = {}) => ({
+    supabaseUrl: String(raw.supabaseUrl || '').trim(),
+    anonKey: String(raw.anonKey || raw.supabaseKey || '').trim(),
+    otpLength: Number.parseInt(String(raw.otpLength || 6), 10) || 6,
+    emailMaxLength: Number.parseInt(String(raw.emailMaxLength || 254), 10) || 254,
+    passwordMaxLength: Number.parseInt(String(raw.passwordMaxLength || 72), 10) || 72
+  });
+
+  const loadConfigFromSameOrigin = async () => {
+    const candidates = ['/auth.config.json', '/matrix-auth.config.json', 'auth.config.json', 'matrix-auth.config.json'];
+    for (const candidate of candidates) {
+      try {
+        const response = await fetch(candidate, {
+          method: 'GET',
+          cache: 'no-store',
+          credentials: 'same-origin',
+          headers: { 'Accept': 'application/json' }
+        });
+        if (!response.ok) continue;
+        const payload = await response.json();
+        if (payload && typeof payload === 'object') {
+          const normalized = normalizeConfig(payload);
+          if (normalized.supabaseUrl && normalized.anonKey) {
+            window.__MATRIX_SUPABASE_CONFIG__ = {
+              ...(window.__MATRIX_SUPABASE_CONFIG__ || {}),
+              ...normalized
+            };
+            return normalized;
+          }
+        }
+      } catch (_error) {
+        // noop
+      }
+    }
+    return null;
+  };
+
+  const loadRuntimeConfig = async () => {
+    const bridgeConfig = normalizeConfig(window.electronAPI && window.electronAPI.authConfig ? window.electronAPI.authConfig : {});
+    if (bridgeConfig.supabaseUrl && bridgeConfig.anonKey) {
+      return bridgeConfig;
+    }
+
+    const inlineConfig = normalizeConfig(readInlineConfig());
+    if (inlineConfig.supabaseUrl && inlineConfig.anonKey) {
+      return inlineConfig;
+    }
+
+    const fetchedConfig = await loadConfigFromSameOrigin();
+    if (fetchedConfig && fetchedConfig.supabaseUrl && fetchedConfig.anonKey) {
+      return fetchedConfig;
+    }
+
     return {
-      supabaseUrl: bridgeConfig.supabaseUrl || inlineConfig.supabaseUrl || DEFAULT_PROJECT_URL,
-      anonKey: bridgeConfig.anonKey || bridgeConfig.supabaseKey || inlineConfig.anonKey || inlineConfig.supabaseKey || DEFAULT_ANON_KEY,
-      otpLength: bridgeConfig.otpLength || inlineConfig.otpLength || 6,
-      emailMaxLength: bridgeConfig.emailMaxLength || inlineConfig.emailMaxLength || 254,
-      passwordMaxLength: bridgeConfig.passwordMaxLength || inlineConfig.passwordMaxLength || 72
+      supabaseUrl: '',
+      anonKey: '',
+      otpLength: inlineConfig.otpLength || bridgeConfig.otpLength || 6,
+      emailMaxLength: inlineConfig.emailMaxLength || bridgeConfig.emailMaxLength || 254,
+      passwordMaxLength: inlineConfig.passwordMaxLength || bridgeConfig.passwordMaxLength || 72
     };
   };
 
-  const config = getConfig();
+  const config = await loadRuntimeConfig();
   const matrix = window.MatrixSession;
-  const client = window.supabase && typeof window.supabase.createClient === 'function'
+  const hasValidAuthConfig = Boolean(config.supabaseUrl && config.anonKey);
+  const client = hasValidAuthConfig && window.supabase && typeof window.supabase.createClient === 'function'
     ? window.supabase.createClient(config.supabaseUrl, config.anonKey, {
         auth: {
-          persistSession: true,
-          autoRefreshToken: true,
+          persistSession: false,
+          autoRefreshToken: false,
           detectSessionInUrl: false,
-          flowType: 'pkce'
+          flowType: 'implicit'
         }
       })
     : null;
 
-  const getPageName = () => window.location.pathname.split('/').pop() || '';
+  const getPageName = () => {
+    const path = window.location.pathname.split('/').filter(Boolean).pop() || '';
+    return path.replace(/\.html$/i, '');
+  };
   const getSearchParam = (key) => {
     try {
       return new URLSearchParams(window.location.search).get(key);
@@ -84,8 +138,65 @@
 
   const sanitizeEmail = (value) => String(value || '').trim().toLowerCase();
   const sanitizeCode = (value) => String(value || '').replace(/\D+/g, '').slice(0, config.otpLength);
+  const SIGNUP_PASSWORD_MIN_LENGTH = 12;
+  const DEFAULT_PASSWORD_MIN_LENGTH = 8;
   const VERIFICATION_REQUIRED_MESSAGE = 'The verification code is required';
   const getVerificationLengthMessage = () => `The verification code should be exactly ${config.otpLength} characters long`;
+
+  const PASSWORD_ATTEMPT_SCOPE = 'password-login';
+  const OTP_ATTEMPT_SCOPE = 'otp-verify';
+  const OTP_RESEND_SCOPE = 'otp-resend';
+  const OTP_RESEND_COOLDOWN_MS = 30 * 1000;
+
+  const getThrottleMessage = (label, status) => {
+    if (!status || !status.blocked) return '';
+    const remaining = matrix && typeof matrix.formatRemainingTime === 'function'
+      ? matrix.formatRemainingTime(status.remainingMs)
+      : `${Math.max(1, Math.ceil((status.remainingMs || 0) / 1000))}s`;
+
+    if (status.cooldownReason === 'resend_cooldown') {
+      return `Wait ${remaining} before requesting another verification code.`;
+    }
+
+    return `Too many ${label} attempts. Try again in ${remaining}.`;
+  };
+
+  const getAttemptStatus = (scope, identifier) =>
+    matrix && typeof matrix.getAttemptStatus === 'function'
+      ? matrix.getAttemptStatus(scope, identifier)
+      : { blocked: false, remainingMs: 0, failureCount: 0, cooldownReason: '' };
+
+  const enforceThrottle = (scope, identifier, label) => {
+    const status = getAttemptStatus(scope, identifier);
+    if (!status.blocked) {
+      return false;
+    }
+
+    showMessage(getThrottleMessage(label, status));
+    return true;
+  };
+
+  const registerFailedAttempt = (scope, identifier, label) => {
+    if (!(matrix && typeof matrix.registerFailedAttempt === 'function')) {
+      return;
+    }
+
+    const status = matrix.registerFailedAttempt(scope, identifier);
+    if (status && status.blocked) {
+      showMessage(getThrottleMessage(label, status));
+    }
+  };
+
+  const clearAttemptStatus = (scope, identifier) => {
+    if (matrix && typeof matrix.clearAttemptStatus === 'function') {
+      matrix.clearAttemptStatus(scope, identifier);
+    }
+  };
+
+  const startCooldown = (scope, identifier, cooldownMs, reason) =>
+    matrix && typeof matrix.registerCooldown === 'function'
+      ? matrix.registerCooldown(scope, identifier, cooldownMs, reason)
+      : null;
   const VERIFICATION_ERROR_ICON = `
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" title="Error">
       <path fill-rule="evenodd" clip-rule="evenodd" d="M8 14.667A6.667 6.667 0 1 0 8 1.333a6.667 6.667 0 0 0 0 13.334z" fill="#D00E17" stroke="#D00E17" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
@@ -125,16 +236,98 @@
 
   const requireClient = () => {
     if (client) return true;
-    showMessage('Supabase client is not available on this page.');
+    showMessage(hasValidAuthConfig ? 'Supabase client is not available on this page.' : 'Authentication is not configured. Load auth.config.json or set MATRIX_SUPABASE_URL and MATRIX_SUPABASE_ANON_KEY before starting the app.');
     return false;
   };
 
   const getOAuthCallbackUrl = () => `${window.location.origin}/auth/callback.html`;
+  const OAUTH_POPUP_STORAGE_KEY = 'matrix.oauth.popup.result';
+  const OAUTH_POPUP_NAME = 'matrix-google-auth-popup';
+
+  const isPopupRequest = () => getSearchParam('popup') === '1';
+
+  const getOAuthPopupFeatures = () => {
+    const popupWidth = 520;
+    const popupHeight = 720;
+    const popupLeft = Math.max(0, Math.round(window.screenX + ((window.outerWidth - popupWidth) / 2)));
+    const popupTop = Math.max(0, Math.round(window.screenY + ((window.outerHeight - popupHeight) / 2)));
+    return [
+      'popup=yes',
+      'toolbar=no',
+      'menubar=no',
+      'location=yes',
+      'status=no',
+      'resizable=yes',
+      'scrollbars=yes',
+      `width=${popupWidth}`,
+      `height=${popupHeight}`,
+      `left=${popupLeft}`,
+      `top=${popupTop}`,
+    ].join(',');
+  };
+
+  const openOAuthPopup = (provider) => {
+    const mode = matrix && typeof matrix.getModeFromLocation === 'function'
+      ? matrix.getModeFromLocation()
+      : 'login';
+    const popupUrl = new URL('google-oauth-start.html', window.location.href);
+    popupUrl.searchParams.set('mode', mode === 'signup' ? 'signup' : 'login');
+    popupUrl.searchParams.set('provider', provider);
+    popupUrl.searchParams.set('popup', '1');
+
+    const popup = window.open(popupUrl.toString(), OAUTH_POPUP_NAME, getOAuthPopupFeatures());
+    if (!popup) {
+      return false;
+    }
+
+    try {
+      popup.focus();
+    } catch (_error) {
+      // noop
+    }
+
+    return true;
+  };
+
+  const handleOAuthPopupResult = (payload) => {
+    if (!payload || payload.provider !== 'google') {
+      return;
+    }
+
+    if (getPageName() !== 'index') {
+      window.location.href = 'index.html';
+    }
+  };
+
+  window.addEventListener('message', (event) => {
+    if (event.origin !== window.location.origin) {
+      return;
+    }
+
+    if (event.data && event.data.type === 'matrix:oauth:complete') {
+      handleOAuthPopupResult(event.data);
+    }
+  });
+
+  window.addEventListener('storage', (event) => {
+    if (event.key !== OAUTH_POPUP_STORAGE_KEY || !event.newValue) {
+      return;
+    }
+
+    try {
+      handleOAuthPopupResult(JSON.parse(event.newValue));
+    } catch (_error) {
+      // noop
+    }
+  });
+
+  const shouldPreferPopupOAuth = (provider) => {
+    if (provider !== 'google') return false;
+    return Boolean(window.electronAPI) || isPopupRequest() || typeof window.openMatrixGoogleAuthPopup === 'function';
+  };
 
   const startOAuthSignIn = async (provider, button) => {
     clearMessage();
-
-    if (!requireClient()) return;
 
     if (!/^https?:$/.test(window.location.protocol)) {
       showMessage(`${provider[0].toUpperCase()}${provider.slice(1)} sign-in requires the app to run over http://localhost or https.`);
@@ -143,6 +336,22 @@
 
     try {
       setBusy(button, true);
+
+      if (shouldPreferPopupOAuth(provider)) {
+        const popupOpened = typeof window.openMatrixGoogleAuthPopup === 'function'
+          ? window.openMatrixGoogleAuthPopup(
+              matrix && typeof matrix.getModeFromLocation === 'function' ? matrix.getModeFromLocation() : 'login',
+              { closeModal: false, source: 'matrix_auth_google_button' }
+            )
+          : openOAuthPopup(provider);
+
+        if (popupOpened) {
+          return;
+        }
+      }
+
+      if (!requireClient()) return;
+
       const { data, error } = await client.auth.signInWithOAuth({
         provider,
         options: {
@@ -162,7 +371,7 @@
         throw new Error(`Supabase did not return an OAuth URL for ${provider}.`);
       }
 
-      window.location.href = data.url;
+      window.location.assign(data.url);
     } catch (error) {
       showMessage(error && error.message ? error.message : `Unable to start ${provider} sign-in.`);
     } finally {
@@ -243,11 +452,25 @@
   const syncFloatingFieldState = (field) => {
     if (!(field instanceof HTMLElement)) return;
 
+    const root = field.closest('._root_18qcl_51');
     const footprint = field.closest('._fieldFootprint_18qcl_59');
     if (!footprint) return;
 
     const hasValue = String(field.value || '').trim().length > 0;
     const isFocused = document.activeElement === field;
+    const hasBadNumberInput =
+      field instanceof HTMLInputElement &&
+      field.type === 'number' &&
+      field.validity &&
+      field.validity.badInput;
+    const hasValidationError =
+      field.hasAttribute('aria-invalid') ||
+      field.hasAttribute('data-invalid') ||
+      (root instanceof HTMLElement && root.querySelector('._errors_18qcl_110'));
+    const shouldMaskBadNumberInput = hasBadNumberInput && !isFocused && !hasValidationError;
+    const label = root instanceof HTMLElement
+      ? root.querySelector('label._typeableLabel_18qcl_74')
+      : null;
 
     footprint.classList.toggle('_hasValue_18qcl_151', hasValue);
 
@@ -257,6 +480,32 @@
     } else {
       field.removeAttribute('data-focused');
       field.removeAttribute('data-focus-within');
+    }
+
+    if (root instanceof HTMLElement) {
+      root.toggleAttribute('data-matrix-bad-number-resting', shouldMaskBadNumberInput);
+    }
+
+    if (shouldMaskBadNumberInput) {
+      field.style.color = 'transparent';
+      field.style.webkitTextFillColor = 'transparent';
+      field.style.caretColor = 'transparent';
+
+      if (label instanceof HTMLElement) {
+        label.style.zIndex = '6';
+        label.style.pointerEvents = 'none';
+      }
+
+      return;
+    }
+
+    field.style.color = '';
+    field.style.webkitTextFillColor = '';
+    field.style.caretColor = 'auto';
+
+    if (label instanceof HTMLElement) {
+      label.style.zIndex = '';
+      label.style.pointerEvents = '';
     }
   };
 
@@ -269,12 +518,14 @@
   const bindFloatingFieldState = (field) => {
     if (!(field instanceof HTMLElement)) return;
 
-    if (field.dataset.floatingStateBound === 'true') {
+    // Some cloned/auth pages already ship with data-floating-state-bound in the
+    // HTML, so we keep our own binding flag to ensure listeners are attached.
+    if (field.dataset.matrixFloatingStateBound === 'true') {
       syncFloatingFieldState(field);
       return;
     }
 
-    field.dataset.floatingStateBound = 'true';
+    field.dataset.matrixFloatingStateBound = 'true';
 
     const handleStateSync = () => syncFloatingFieldState(field);
 
@@ -282,6 +533,7 @@
     field.addEventListener('blur', handleStateSync);
     field.addEventListener('input', handleStateSync);
     field.addEventListener('change', handleStateSync);
+    field.addEventListener('keyup', handleStateSync);
 
     syncFloatingFieldState(field);
   };
@@ -351,6 +603,8 @@
         </li>
       </ul>
     `;
+
+    syncFloatingFieldState(input);
   };
 
   const clearVerificationFieldError = () => {
@@ -368,6 +622,234 @@
     input.removeAttribute('data-invalid');
     input.setAttribute('aria-describedby', baseDescribedBy);
     errorHost.innerHTML = '';
+  };
+
+  const getAboutYouFieldElements = (inputName) => {
+    const input = document.querySelector(`input[name="${inputName}"]`);
+    if (!(input instanceof HTMLElement)) return null;
+
+    const wrapper = input.closest('.react-aria-TextField, ._ageFallbackAgeInput_q6mtz_32');
+    const root = wrapper ? wrapper.querySelector('._root_18qcl_51') : input.closest('._root_18qcl_51');
+    const liveRegion = root ? root.querySelector('span[aria-live="polite"][aria-atomic="true"]') : null;
+
+    if (!(wrapper instanceof HTMLElement) || !(root instanceof HTMLElement) || !(liveRegion instanceof HTMLElement)) {
+      return null;
+    }
+
+    return { input, wrapper, root, liveRegion };
+  };
+
+  const ensureAboutYouFieldErrorHost = (inputName, fallbackId) => {
+    const elements = getAboutYouFieldElements(inputName);
+    if (!elements) return null;
+
+    const { input, liveRegion } = elements;
+    let errorHost = liveRegion.querySelector('.react-aria-FieldError');
+
+    if (!(errorHost instanceof HTMLElement)) {
+      errorHost = document.createElement('span');
+      errorHost.className = 'react-aria-FieldError';
+      errorHost.setAttribute('slot', 'errorMessage');
+      errorHost.setAttribute('data-rac', '');
+      errorHost.id = fallbackId || `${input.id}-error`;
+      liveRegion.appendChild(errorHost);
+    }
+
+    if (!errorHost.id) {
+      errorHost.id = fallbackId || `${input.id}-error`;
+    }
+
+    return { ...elements, errorHost };
+  };
+
+  const setAboutYouFieldError = (inputName, message, fallbackId) => {
+    const elements = ensureAboutYouFieldErrorHost(inputName, fallbackId);
+    if (!elements) {
+      showMessage(message);
+      return;
+    }
+
+    const { input, wrapper, errorHost } = elements;
+    const baseDescribedBy = (input.dataset.baseDescribedBy || input.getAttribute('aria-describedby') || '')
+      .split(/\s+/)
+      .filter(Boolean)
+      .filter((value) => value !== errorHost.id)
+      .join(' ');
+
+    if (!input.dataset.baseDescribedBy) {
+      input.dataset.baseDescribedBy = baseDescribedBy;
+    }
+
+    wrapper.setAttribute('data-invalid', 'true');
+    input.setAttribute('aria-invalid', 'true');
+    input.setAttribute('data-invalid', 'true');
+    input.setAttribute('aria-describedby', [baseDescribedBy, errorHost.id].filter(Boolean).join(' '));
+
+    errorHost.innerHTML = `
+      <ul class="_errors_18qcl_110">
+        <li class="_error_18qcl_110">
+          ${VERIFICATION_ERROR_ICON}
+          ${message}
+        </li>
+      </ul>
+    `;
+
+    syncFloatingFieldState(input);
+  };
+
+  const clearAboutYouFieldError = (inputName) => {
+    const elements = getAboutYouFieldElements(inputName);
+    if (!elements) return;
+
+    const { input, wrapper, liveRegion } = elements;
+    const errorHost = liveRegion.querySelector('.react-aria-FieldError');
+    const baseDescribedBy = (input.dataset.baseDescribedBy || '')
+      .split(/\s+/)
+      .filter(Boolean)
+      .join(' ');
+
+    wrapper.removeAttribute('data-invalid');
+    input.removeAttribute('aria-invalid');
+    input.removeAttribute('data-invalid');
+    input.setAttribute('aria-describedby', baseDescribedBy);
+    if (errorHost instanceof HTMLElement) {
+      errorHost.innerHTML = '';
+    }
+
+    syncFloatingFieldState(input);
+  };
+
+  const ensurePasswordFieldAssistiveElements = () => {
+    const input = document.querySelector('input[name="new-password"]');
+    if (!(input instanceof HTMLElement)) return null;
+
+    const textField = input.closest('.react-aria-TextField');
+    const root = input.closest('._root_18qcl_51');
+    const liveRegion = root ? root.querySelector('span[aria-live="polite"][aria-atomic="true"]') : null;
+    const requirementHost = document.querySelector('._requirements_1fjp5_2');
+    const requirementList = requirementHost ? requirementHost.querySelector('._requirementsList_1fjp5_13') : null;
+    const requirementItem = requirementHost ? requirementHost.querySelector('._requirement_1fjp5_2') : null;
+    const screenreaderOnly = requirementHost ? requirementHost.querySelector('._screenreaderOnly_1fjp5_36') : null;
+
+    if (
+      !(textField instanceof HTMLElement) ||
+      !(root instanceof HTMLElement) ||
+      !(liveRegion instanceof HTMLElement) ||
+      !(requirementHost instanceof HTMLElement) ||
+      !(requirementList instanceof HTMLElement) ||
+      !(requirementItem instanceof HTMLElement) ||
+      !(screenreaderOnly instanceof HTMLElement)
+    ) {
+      return null;
+    }
+
+    let errorHost = liveRegion.querySelector('.react-aria-FieldError');
+    if (!(errorHost instanceof HTMLElement)) {
+      errorHost = document.createElement('span');
+      errorHost.className = 'react-aria-FieldError';
+      errorHost.setAttribute('slot', 'errorMessage');
+      errorHost.setAttribute('data-rac', '');
+      errorHost.id = `${input.id}-error`;
+      liveRegion.appendChild(errorHost);
+    }
+
+    if (!errorHost.id) {
+      errorHost.id = `${input.id}-error`;
+    }
+
+    return {
+      input,
+      textField,
+      root,
+      errorHost,
+      requirementHost,
+      requirementList,
+      requirementItem,
+      screenreaderOnly
+    };
+  };
+
+  const setPasswordRequirementState = ({ visible, invalid, complete }) => {
+    const elements = ensurePasswordFieldAssistiveElements();
+    if (!elements) return;
+
+    const {
+      input,
+      textField,
+      errorHost,
+      requirementHost,
+      requirementList,
+      requirementItem,
+      screenreaderOnly
+    } = elements;
+
+    const relatedIds = [errorHost.id, requirementHost.id, requirementList.id].filter(Boolean);
+    const baseDescribedBy = (input.dataset.baseDescribedBy || input.getAttribute('aria-describedby') || '')
+      .split(/\s+/)
+      .filter(Boolean)
+      .filter((value) => !relatedIds.includes(value))
+      .join(' ');
+
+    if (!input.dataset.baseDescribedBy) {
+      input.dataset.baseDescribedBy = baseDescribedBy;
+    }
+
+    requirementHost.hidden = !visible;
+    requirementHost.style.display = visible ? 'block' : 'none';
+    requirementHost.style.setProperty('--unmet-requirement-color', invalid ? 'var(--platform-error)' : 'inherit');
+    requirementHost.style.setProperty('--unmet-requirement-glyph', invalid ? '"\\2717"' : '"\\2022"');
+
+    requirementItem.classList.toggle('_requirementComplete_1fjp5_31', complete);
+    screenreaderOnly.textContent = complete ? '. Complete.' : '. Incomplete.';
+
+    if (invalid) {
+      textField.setAttribute('data-invalid', 'true');
+      input.setAttribute('aria-invalid', 'true');
+      input.setAttribute('data-invalid', 'true');
+      errorHost.innerHTML = '<ul class="_errors_18qcl_110"></ul>';
+    } else {
+      textField.removeAttribute('data-invalid');
+      input.removeAttribute('aria-invalid');
+      input.removeAttribute('data-invalid');
+      errorHost.innerHTML = '';
+    }
+
+    const describedBy = [];
+    if (baseDescribedBy) describedBy.push(baseDescribedBy);
+    if (invalid) describedBy.push(errorHost.id);
+    if (visible) describedBy.push(requirementHost.id, requirementList.id);
+    input.setAttribute('aria-describedby', describedBy.filter(Boolean).join(' '));
+  };
+
+  const createPasswordRequirementController = (passwordInput) => {
+    if (!(passwordInput instanceof HTMLElement)) return null;
+
+    let hasAttemptedSubmit = false;
+
+    const sync = () => {
+      const password = String(passwordInput.value || '');
+      const complete = password.length >= SIGNUP_PASSWORD_MIN_LENGTH;
+      const visible = document.activeElement === passwordInput || password.length > 0 || hasAttemptedSubmit;
+      const invalid = hasAttemptedSubmit && !complete;
+
+      setPasswordRequirementState({ visible, invalid, complete });
+      return complete;
+    };
+
+    passwordInput.addEventListener('focus', sync);
+    passwordInput.addEventListener('blur', sync);
+    passwordInput.addEventListener('input', sync);
+    passwordInput.addEventListener('change', sync);
+
+    sync();
+
+    return {
+      sync,
+      markSubmitted() {
+        hasAttemptedSubmit = true;
+        return sync();
+      }
+    };
   };
 
   const bindVisibilityToggle = () => {
@@ -509,7 +991,9 @@
     if (passwordInput) {
       passwordInput.value = '';
       passwordInput.maxLength = config.passwordMaxLength;
-      passwordInput.minLength = 8;
+      passwordInput.minLength = matrix && matrix.getModeFromLocation && matrix.getModeFromLocation() === 'signup'
+        ? SIGNUP_PASSWORD_MIN_LENGTH
+        : DEFAULT_PASSWORD_MIN_LENGTH;
       passwordInput.autocomplete = matrix && matrix.getModeFromLocation && matrix.getModeFromLocation() === 'signup'
         ? 'new-password'
         : 'current-password';
@@ -571,6 +1055,28 @@
     refreshFloatingFieldStates();
   };
 
+  const syncAboutYouDefaults = () => {
+    const pending = matrix && typeof matrix.getPendingAuth === 'function' ? matrix.getPendingAuth() : null;
+    const nameInput = document.querySelector('input[name="name"]');
+    const ageInput = document.querySelector('input[name="age"]');
+    const birthdayInput = document.querySelector('input[name="birthday"]');
+
+    if (nameInput && pending && typeof pending.name === 'string' && pending.name) {
+      nameInput.value = pending.name;
+      syncFloatingFieldState(nameInput);
+    }
+
+    if (ageInput && pending && Number.isFinite(pending.age)) {
+      ageInput.value = String(pending.age);
+      syncFloatingFieldState(ageInput);
+    }
+
+    if (birthdayInput) {
+      birthdayInput.value = new Date().toISOString().slice(0, 10);
+    }
+    refreshFloatingFieldStates();
+  };
+
   const goToIndex = () => {
     window.location.href = 'index.html';
   };
@@ -624,30 +1130,16 @@
         return;
       }
 
+      clearAttemptStatus(PASSWORD_ATTEMPT_SCOPE, email);
+      clearAttemptStatus(OTP_ATTEMPT_SCOPE, email);
+      clearAttemptStatus(OTP_RESEND_SCOPE, email);
       matrix.setPendingAuth({ mode, email });
 
       if (mode === 'login') {
         window.location.href = 'create-account-password.html?mode=login';
         return;
       }
-
-      if (!requireClient()) return;
-
-      try {
-        setBusy(submitButton, true, 'Sending code...');
-        const { error } = await client.auth.signInWithOtp({
-          email,
-          options: {
-            shouldCreateUser: true
-          }
-        });
-        if (error) throw error;
-        window.location.href = 'email-verification.html?mode=signup';
-      } catch (error) {
-        showMessage(error && error.message ? error.message : 'Unable to send the verification code.');
-      } finally {
-        setBusy(submitButton, false);
-      }
+      window.location.href = 'create-account-password.html?mode=signup';
     });
   };
 
@@ -661,6 +1153,9 @@
     const submitButton = form ? form.querySelector('button[type="submit"]') : null;
     const passwordInput = form ? form.querySelector('input[name="new-password"]') : null;
     const pending = matrix.getPendingAuth();
+    const passwordRequirementController = matrix.getModeFromLocation() === 'signup'
+      ? createPasswordRequirementController(passwordInput)
+      : null;
 
     if (!form || !submitButton || !passwordInput) return;
     if (!pending || !pending.email) {
@@ -668,31 +1163,50 @@
       return;
     }
 
+    if (!passwordRequirementController) {
+      setPasswordRequirementState({ visible: false, invalid: false, complete: false });
+    }
+
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       clearMessage();
       const mode = matrix.getModeFromLocation();
       const password = String(passwordInput.value || '');
+      const minPasswordLength = mode === 'signup' ? SIGNUP_PASSWORD_MIN_LENGTH : DEFAULT_PASSWORD_MIN_LENGTH;
 
-      if (password.length < 8) {
-        showMessage('Use at least 8 characters in the password.');
+      if (passwordRequirementController) {
+        passwordRequirementController.markSubmitted();
+      }
+
+      if (password.length < minPasswordLength) {
+        if (mode === 'signup') {
+          return;
+        }
+        showMessage(`Use at least ${minPasswordLength} characters in the password.`);
         return;
       }
       if (password.length > config.passwordMaxLength) {
         showMessage(`Use at most ${config.passwordMaxLength} characters in the password.`);
         return;
       }
+
+      if (mode === 'login' && enforceThrottle(PASSWORD_ATTEMPT_SCOPE, pending.email, 'sign-in')) {
+        return;
+      }
+
       if (!requireClient()) return;
 
       try {
-        setBusy(submitButton, true, mode === 'signup' ? 'Saving password...' : 'Signing in...');
+        setBusy(submitButton, true, mode === 'signup' ? 'Sending code...' : 'Signing in...');
 
         if (mode === 'signup') {
-          const { data, error } = await client.auth.updateUser({ password });
-          if (error) throw error;
-          matrix.startAuthenticatedSession(data && data.user ? data.user : { email: pending.email }, { provider: 'email' });
-          matrix.clearPendingAuth();
-          goToIndex();
+          matrix.setPendingAuth({
+            ...pending,
+            mode,
+            email: pending.email,
+            password
+          });
+          window.location.href = 'about-you.html?mode=signup';
           return;
         }
 
@@ -701,10 +1215,15 @@
           password
         });
         if (error) throw error;
+
+        clearAttemptStatus(PASSWORD_ATTEMPT_SCOPE, pending.email);
+        passwordInput.value = '';
         matrix.startAuthenticatedSession(data && data.user ? data.user : { email: pending.email }, { provider: 'email' });
         matrix.clearPendingAuth();
         goToIndex();
       } catch (error) {
+        passwordInput.value = '';
+        registerFailedAttempt(PASSWORD_ATTEMPT_SCOPE, pending.email, 'sign-in');
         showMessage(error && error.message ? error.message : 'Authentication failed.');
       } finally {
         setBusy(submitButton, false);
@@ -763,6 +1282,11 @@
       }
 
       clearVerificationFieldError();
+
+      if (enforceThrottle(OTP_ATTEMPT_SCOPE, pending.email, 'verification')) {
+        return;
+      }
+
       if (!requireClient()) return;
 
       try {
@@ -775,14 +1299,35 @@
         if (error) throw error;
 
         if (pending.mode === 'signup') {
-          window.location.href = 'create-account-password.html?mode=signup';
+          const pendingPassword = typeof pending.password === 'string' ? pending.password : '';
+          if (pendingPassword.length < SIGNUP_PASSWORD_MIN_LENGTH) {
+            showMessage('Choose a password before confirming the code.');
+            window.location.href = 'create-account-password.html?mode=signup';
+            return;
+          }
+
+          const { data: updatedUserData, error: updateError } = await client.auth.updateUser({
+            password: pendingPassword
+          });
+          if (updateError) throw updateError;
+          clearAttemptStatus(OTP_ATTEMPT_SCOPE, pending.email);
+          clearAttemptStatus(OTP_RESEND_SCOPE, pending.email);
+          matrix.startAuthenticatedSession(
+            updatedUserData && updatedUserData.user ? updatedUserData.user : (data && data.user ? data.user : { email: pending.email }),
+            { provider: 'email' }
+          );
+          matrix.clearPendingAuth();
+          goToIndex();
           return;
         }
 
+        clearAttemptStatus(OTP_ATTEMPT_SCOPE, pending.email);
+        clearAttemptStatus(OTP_RESEND_SCOPE, pending.email);
         matrix.startAuthenticatedSession(data && data.user ? data.user : { email: pending.email }, { provider: 'email' });
         matrix.clearPendingAuth();
         goToIndex();
       } catch (error) {
+        registerFailedAttempt(OTP_ATTEMPT_SCOPE, pending.email, 'verification');
         setVerificationFieldError(error && error.message ? error.message : 'Unable to verify the code.');
       } finally {
         setBusy(verifyButton, false);
@@ -794,6 +1339,11 @@
       resendButton.addEventListener('click', async (event) => {
         event.preventDefault();
         clearMessage();
+
+        if (enforceThrottle(OTP_RESEND_SCOPE, pending.email, 'verification code resend')) {
+          return;
+        }
+
         if (!requireClient()) return;
         try {
           setBusy(resendButton, true, 'Sending again...');
@@ -804,6 +1354,7 @@
             }
           });
           if (error) throw error;
+          startCooldown(OTP_RESEND_SCOPE, pending.email, OTP_RESEND_COOLDOWN_MS, 'resend_cooldown');
           showMessage('A new verification code was sent to your email.', 'success');
         } catch (error) {
           showMessage(error && error.message ? error.message : 'Unable to resend the code.');
@@ -812,6 +1363,101 @@
         }
       });
     }
+  };
+
+  const handleAboutYouStep = () => {
+    decorateFields();
+    unlockAuthInputs();
+    syncAboutYouDefaults();
+    const AGE_ERROR_MESSAGE = 'Enter a valid age to continue';
+    const AGE_ERROR_ID = 'react-aria5631790494-_r_s_';
+
+    const form =
+      document.querySelector('form[id="_r_h_"]') ||
+      document.querySelector('form[id="_r_3_"]') ||
+      document.querySelector('form[action="/about-you"]');
+    const submitButton = form ? form.querySelector('button[type="submit"]') : null;
+    const nameInput = form ? form.querySelector('input[name="name"]') : null;
+    const ageInput = form ? form.querySelector('input[name="age"]') : null;
+    const pending = matrix.getPendingAuth();
+
+    if (!form || !submitButton || !nameInput || !ageInput) return;
+    if (!pending || !pending.email || pending.mode !== 'signup') {
+      window.location.replace('log-in-or-create-account.html?mode=signup');
+      return;
+    }
+
+    const clearErrors = () => {
+      clearAboutYouFieldError('name');
+      clearAboutYouFieldError('age');
+      const birthdayInput = form.querySelector('input[name="birthday"]');
+      if (birthdayInput instanceof HTMLElement) {
+        birthdayInput.removeAttribute('aria-invalid');
+        birthdayInput.removeAttribute('aria-describedby');
+      }
+    };
+
+    nameInput.addEventListener('input', () => {
+      syncFloatingFieldState(nameInput);
+      clearAboutYouFieldError('name');
+    });
+
+    const syncAgeFieldState = () => {
+      syncFloatingFieldState(ageInput);
+      clearAboutYouFieldError('age');
+    };
+
+    ageInput.addEventListener('input', syncAgeFieldState);
+    ageInput.addEventListener('change', syncAgeFieldState);
+    ageInput.addEventListener('blur', syncAgeFieldState);
+
+    clearErrors();
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      clearMessage();
+      clearErrors();
+
+      const name = String(nameInput.value || '').trim();
+      const ageValue = String(ageInput.value || '').trim();
+      const age = Number(ageValue);
+      const isAgeValid = Number.isInteger(age) && age >= 5 && age <= 130;
+
+      let hasError = false;
+
+      if (!name) {
+        setAboutYouFieldError('name', 'Please enter name to continue', 'react-aria5631790494-_r_n_');
+        hasError = true;
+      }
+
+      if (!isAgeValid) {
+        setAboutYouFieldError('age', AGE_ERROR_MESSAGE, AGE_ERROR_ID);
+        hasError = true;
+      }
+
+      if (hasError) {
+        return;
+      }
+
+      try {
+        setBusy(submitButton, true);
+        matrix.setPendingAuth({
+          ...pending,
+          name,
+          age
+          });
+          window.location.href =
+            'what-brings-you-to-chatgpt.html?next=' +
+            encodeURIComponent(
+              'how-do-you-plan-to-use-chatgpt.html?next=' +
+                encodeURIComponent('log-in-or-create-account.html?mode=signup')
+            );
+        } catch (error) {
+          showMessage(error && error.message ? error.message : 'Unable to continue.');
+        } finally {
+        setBusy(submitButton, false);
+      }
+    });
   };
 
   const init = () => {
@@ -829,6 +1475,8 @@
       handlePasswordStep();
     } else if (page === AUTH_PAGE_VERIFY) {
       handleVerificationStep();
+    } else if (page === AUTH_PAGE_ABOUT) {
+      handleAboutYouStep();
     }
   };
 

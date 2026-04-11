@@ -1,0 +1,7 @@
+{
+  "supabaseUrl": "https://xkkrbnxqtrfjzbasvocz.supabase.co",
+  "anonKey": "sb_publishable_MhEwBmkNjTFAMSZniI5XzQ_45tNsIYX",
+  "otpLength": 6,
+  "emailMaxLength": 254,
+  "passwordMaxLength": 72
+}

@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Opening Google sign-in…</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        background: #0f0f10;
+        color: #f5f5f5;
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      body { display: grid; place-items: center; }
+      .card {
+        width: min(420px, calc(100vw - 32px));
+        padding: 24px 22px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 18px;
+        background: #171717;
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+      }
+      .title { margin: 0 0 10px; font-size: 18px; font-weight: 600; line-height: 1.35; }
+      .text { margin: 0; color: rgba(255, 255, 255, 0.74); font-size: 14px; line-height: 1.5; }
+      .spinner {
+        width: 30px; height: 30px; margin: 0 0 16px; border-radius: 999px;
+        border: 3px solid rgba(255, 255, 255, 0.14); border-top-color: #1a73e8;
+        animation: spin 0.9s linear infinite;
+      }
+      .error { color: #fda4af; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="spinner" aria-hidden="true"></div>
+      <h1 class="title">Opening Google sign-in…</h1>
+      <p class="text" id="oauth-start-status">Please wait a moment.</p>
+    </div>
+    <script>
+      (() => {
+        const CONFIG_URLS = ['/auth.config.json', '/matrix-auth.config.json', 'auth.config.json', 'matrix-auth.config.json'];
+        const SUPABASE_CDN_URLS = [
+          'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
+          'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js'
+        ];
+        const statusNode = document.getElementById('oauth-start-status');
+        const params = new URLSearchParams(window.location.search);
+        const mode = params.get('mode') === 'signup' ? 'signup' : 'login';
+
+        const setStatus = (message, isError = false) => {
+          if (!(statusNode instanceof HTMLElement)) return;
+          statusNode.textContent = String(message || '');
+          statusNode.classList.toggle('error', Boolean(isError));
+        };
+
+        const normalizeConfig = (raw = {}) => ({
+          supabaseUrl: String(raw.supabaseUrl || '').trim(),
+          anonKey: String(raw.anonKey || raw.supabaseKey || '').trim(),
+        });
+
+        const loadScript = (src) => new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = src;
+          script.async = true;
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error('Unable to load ' + src));
+          document.head.appendChild(script);
+        });
+
+        const ensureSupabase = async () => {
+          if (window.supabase && typeof window.supabase.createClient === 'function') {
+            return window.supabase;
+          }
+
+          let lastError = null;
+          for (const src of SUPABASE_CDN_URLS) {
+            try {
+              await loadScript(src);
+              if (window.supabase && typeof window.supabase.createClient === 'function') {
+                return window.supabase;
+              }
+            } catch (error) {
+              lastError = error;
+            }
+          }
+
+          throw lastError || new Error('Supabase browser client is not available.');
+        };
+
+        const loadConfigFromSameOrigin = async () => {
+          for (const candidate of CONFIG_URLS) {
+            try {
+              const response = await fetch(candidate, {
+                method: 'GET',
+                cache: 'no-store',
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json' },
+              });
+              if (!response.ok) continue;
+              const payload = await response.json();
+              const normalized = normalizeConfig(payload);
+              if (normalized.supabaseUrl && normalized.anonKey) {
+                return normalized;
+              }
+            } catch (_error) {
+              // noop
+            }
+          }
+          return { supabaseUrl: '', anonKey: '' };
+        };
+
+        const getConfig = async () => {
+          const bridgeConfig = window.electronAPI && window.electronAPI.authConfig
+            ? normalizeConfig(window.electronAPI.authConfig)
+            : { supabaseUrl: '', anonKey: '' };
+          if (bridgeConfig.supabaseUrl && bridgeConfig.anonKey) {
+            return bridgeConfig;
+          }
+          return loadConfigFromSameOrigin();
+        };
+
+        const start = async () => {
+          try {
+            const [{ supabaseUrl, anonKey }, supabaseModule] = await Promise.all([
+              getConfig(),
+              ensureSupabase(),
+            ]);
+
+            if (!supabaseUrl || !anonKey) {
+              throw new Error('Authentication is not configured. Add auth.config.json or the Electron auth config before starting the app.');
+            }
+
+            const client = supabaseModule.createClient(supabaseUrl, anonKey, {
+              auth: {
+                persistSession: true,
+                autoRefreshToken: true,
+                detectSessionInUrl: false,
+                flowType: 'implicit',
+              },
+            });
+
+            const { data, error } = await client.auth.signInWithOAuth({
+              provider: 'google',
+              options: {
+                redirectTo: `${window.location.origin}/auth/callback.html`,
+                skipBrowserRedirect: true,
+                queryParams: {
+                  access_type: 'offline',
+                  prompt: 'select_account',
+                },
+              },
+            });
+
+            if (error) throw error;
+            if (!data || !data.url) {
+              throw new Error('Supabase did not return a Google sign-in URL.');
+            }
+
+            window.location.replace(data.url);
+          } catch (error) {
+            setStatus(error && error.message ? error.message : 'Unable to open Google sign-in.', true);
+          }
+        };
+
+        window.name = 'matrix-google-auth-popup';
+        window.__matrixOauthStartMode = mode;
+        start();
+      })();
+    </script>
+  </body>
+</html>
