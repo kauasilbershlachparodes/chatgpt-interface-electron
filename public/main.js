@@ -10,6 +10,9 @@ const APP_PORT = 3210;
 const APP_ORIGIN = `http://${APP_HOST}:${APP_PORT}`;
 const CONFIG_FILE_NAMES = ['auth.config.json', 'matrix-auth.config.json'];
 const KEY_FILE_NAME = 'matrix-secure-store.key';
+const MAX_CONFIG_FILE_BYTES = 32 * 1024;
+const MAX_IPC_STRING_BYTES = 64 * 1024;
+const MAX_REQUEST_URL_LENGTH = 2048;
 
 const MIME_TYPES = {
   '.css': 'text/css; charset=UTF-8',
@@ -73,6 +76,8 @@ function sendFile(response, filePath) {
       'Cache-Control': 'no-store, no-cache, must-revalidate, private',
       'Pragma': 'no-cache',
       'Content-Security-Policy': "default-src 'self' data: blob: https:; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https:; connect-src 'self' https:; font-src 'self' data:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https:;",
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Resource-Policy': 'same-origin',
       'Referrer-Policy': 'no-referrer',
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
@@ -90,10 +95,46 @@ function ensureStaticServer() {
 
   return new Promise((resolve, reject) => {
     staticServer = http.createServer((request, response) => {
-      const filePath = resolveAppFilePath(request.url || '/');
+      const requestMethod = String(request.method || 'GET').toUpperCase();
+      if (requestMethod !== 'GET' && requestMethod != 'HEAD') {
+        response.writeHead(405, { 'Content-Type': 'text/plain; charset=UTF-8', 'Allow': 'GET, HEAD' });
+        response.end('Method not allowed.');
+        return;
+      }
+
+      const requestUrl = String(request.url || '/');
+      if (!requestUrl || requestUrl.length > MAX_REQUEST_URL_LENGTH) {
+        response.writeHead(414, { 'Content-Type': 'text/plain; charset=UTF-8' });
+        response.end('Request URL is too long.');
+        return;
+      }
+
+      const filePath = resolveAppFilePath(requestUrl);
       if (!filePath) {
         response.writeHead(404, { 'Content-Type': 'text/plain; charset=UTF-8' });
         response.end('Not found.');
+        return;
+      }
+
+      if (requestMethod === 'HEAD') {
+        const extension = path.extname(filePath).toLowerCase();
+        const contentType = MIME_TYPES[extension] || 'application/octet-stream';
+        response.writeHead(200, {
+          'Access-Control-Allow-Origin': APP_ORIGIN,
+          'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+          'Pragma': 'no-cache',
+          'Content-Security-Policy': "default-src 'self' data: blob: https:; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https:; connect-src 'self' https:; font-src 'self' data:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https:;",
+          'Cross-Origin-Opener-Policy': 'same-origin',
+          'Cross-Origin-Resource-Policy': 'same-origin',
+          'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Resource-Policy': 'same-origin',
+      'Referrer-Policy': 'no-referrer',
+          'X-Content-Type-Options': 'nosniff',
+          'X-Frame-Options': 'DENY',
+          'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+          'Content-Type': contentType,
+        });
+        response.end();
         return;
       }
 
@@ -235,6 +276,11 @@ function ensureAppDir() {
 
 function readJsonFile(filePath) {
   try {
+    const stats = fs.statSync(filePath);
+    if (!stats.isFile() || stats.size <= 0 || stats.size > MAX_CONFIG_FILE_BYTES) {
+      return null;
+    }
+
     return JSON.parse(fs.readFileSync(filePath, 'utf8'));
   } catch (_error) {
     return null;
@@ -275,19 +321,40 @@ function parsePositiveInteger(value, fallback) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function isSafeSupabaseUrl(value) {
+  try {
+    const parsed = new URL(String(value || '').trim());
+    return parsed.protocol === 'https:' || (parsed.protocol === 'http:' && parsed.hostname === '127.0.0.1');
+  } catch (_error) {
+    return false;
+  }
+}
+
+function normalizeAuthConfig(raw = {}) {
+  const normalizedUrl = String(raw.supabaseUrl || '').trim();
+  const normalizedAnonKey = String(raw.anonKey || raw.supabaseKey || '').trim();
+
+  return {
+    supabaseUrl: isSafeSupabaseUrl(normalizedUrl) ? normalizedUrl : '',
+    anonKey: normalizedAnonKey && normalizedAnonKey.length <= 4096 ? normalizedAnonKey : '',
+    otpLength: parsePositiveInteger(raw.otpLength, 6),
+    emailMaxLength: parsePositiveInteger(raw.emailMaxLength, 254),
+    passwordMaxLength: parsePositiveInteger(raw.passwordMaxLength, 72),
+    loadedFrom: typeof raw.__loadedFrom === 'string' ? raw.__loadedFrom : ''
+  };
+}
+
 function getAuthConfig() {
-  const externalAuthConfig = loadExternalAuthConfig();
-  const supabaseUrl =
-    process.env.MATRIX_SUPABASE_URL ||
-    process.env.SUPABASE_URL ||
-    externalAuthConfig.supabaseUrl ||
-    '';
-  const anonKey =
-    process.env.MATRIX_SUPABASE_ANON_KEY ||
-    process.env.SUPABASE_ANON_KEY ||
-    externalAuthConfig.anonKey ||
-    externalAuthConfig.supabaseKey ||
-    '';
+  const externalAuthConfig = normalizeAuthConfig(loadExternalAuthConfig());
+  const envSupabaseUrl = String(process.env.MATRIX_SUPABASE_URL || process.env.SUPABASE_URL || '').trim();
+  const envAnonKey = String(process.env.MATRIX_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '').trim();
+
+  const supabaseUrl = isSafeSupabaseUrl(envSupabaseUrl)
+    ? envSupabaseUrl
+    : externalAuthConfig.supabaseUrl;
+  const anonKey = envAnonKey && envAnonKey.length <= 4096
+    ? envAnonKey
+    : externalAuthConfig.anonKey;
 
   return {
     supabaseUrl,
@@ -305,7 +372,7 @@ function getAuthConfig() {
       72
     ),
     isConfigured: Boolean(supabaseUrl && anonKey),
-    loadedFrom: externalAuthConfig.__loadedFrom || ''
+    loadedFrom: externalAuthConfig.loadedFrom || ''
   };
 }
 
@@ -383,31 +450,139 @@ function openString(value) {
   return plaintext.toString('utf8');
 }
 
+function getUtf8ByteLength(value) {
+  return Buffer.byteLength(String(value || ''), 'utf8');
+}
+
+function normalizeIpcStringInput(value) {
+  const normalized = String(value ?? '');
+  return getUtf8ByteLength(normalized) <= MAX_IPC_STRING_BYTES ? normalized : '';
+}
+
+function isTrustedSenderUrl(rawUrl = '') {
+  if (rawUrl === 'about:blank') {
+    return true;
+  }
+
+  try {
+    const parsed = new URL(rawUrl);
+    return parsed.origin === APP_ORIGIN;
+  } catch (_error) {
+    return false;
+  }
+}
+
+function isTrustedIpcEvent(event) {
+  const senderFrameUrl = event && event.senderFrame && typeof event.senderFrame.url === 'string'
+    ? event.senderFrame.url
+    : '';
+  const senderUrl = event && event.sender && typeof event.sender.getURL === 'function'
+    ? event.sender.getURL()
+    : '';
+
+  return isTrustedSenderUrl(senderFrameUrl || senderUrl);
+}
+
+function signString(value) {
+  const key = loadOrCreateEncryptionKey();
+  if (!key || typeof value !== 'string') {
+    return '';
+  }
+
+  return crypto.createHmac('sha256', key).update(value, 'utf8').digest('base64url');
+}
+
+function verifySignedString(value, signature) {
+  const normalizedValue = typeof value === 'string' ? value : '';
+  const normalizedSignature = typeof signature === 'string' ? signature.trim() : '';
+  if (!normalizedValue || !normalizedSignature) {
+    return false;
+  }
+
+  try {
+    const expected = Buffer.from(signString(normalizedValue), 'utf8');
+    const actual = Buffer.from(normalizedSignature, 'utf8');
+    return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
+  } catch (_error) {
+    return false;
+  }
+}
+
 function registerIpcHandlers() {
   ipcMain.on('matrix:security:get-auth-config', (event) => {
+    if (!isTrustedIpcEvent(event)) {
+      event.returnValue = { supabaseUrl: '', anonKey: '', otpLength: 6, emailMaxLength: 254, passwordMaxLength: 72, isConfigured: false, loadedFrom: '' };
+      return;
+    }
+
     event.returnValue = getAuthConfig();
   });
 
   ipcMain.on('matrix:security:get-status', (event) => {
+    if (!isTrustedIpcEvent(event)) {
+      event.returnValue = { encryptedAtRest: false };
+      return;
+    }
+
     event.returnValue = {
-      encryptedAtRest: Boolean(loadOrCreateEncryptionKey()),
-      storageKeyPath: path.join(ensureAppDir(), KEY_FILE_NAME)
+      encryptedAtRest: Boolean(loadOrCreateEncryptionKey())
     };
   });
 
   ipcMain.on('matrix:security:seal-string', (event, value) => {
+    if (!isTrustedIpcEvent(event)) {
+      event.returnValue = '';
+      return;
+    }
+
     try {
-      event.returnValue = sealString(String(value ?? ''));
-    } catch (error) {
-      event.returnValue = String(value ?? '');
+      const normalized = normalizeIpcStringInput(value);
+      event.returnValue = normalized ? sealString(normalized) : '';
+    } catch (_error) {
+      event.returnValue = '';
     }
   });
 
   ipcMain.on('matrix:security:open-string', (event, value) => {
+    if (!isTrustedIpcEvent(event)) {
+      event.returnValue = '';
+      return;
+    }
+
     try {
-      event.returnValue = openString(String(value ?? ''));
+      const normalized = normalizeIpcStringInput(value);
+      event.returnValue = normalized ? openString(normalized) : '';
     } catch (_error) {
       event.returnValue = '';
+    }
+  });
+
+  ipcMain.on('matrix:security:sign-string', (event, value) => {
+    if (!isTrustedIpcEvent(event)) {
+      event.returnValue = '';
+      return;
+    }
+
+    try {
+      const normalized = normalizeIpcStringInput(value);
+      event.returnValue = normalized ? signString(normalized) : '';
+    } catch (_error) {
+      event.returnValue = '';
+    }
+  });
+
+  ipcMain.on('matrix:security:verify-signed-string', (event, value, signature) => {
+    if (!isTrustedIpcEvent(event)) {
+      event.returnValue = false;
+      return;
+    }
+
+    try {
+      const normalizedValue = normalizeIpcStringInput(value);
+      const normalizedSignature = normalizeIpcStringInput(signature);
+      event.returnValue = Boolean(normalizedValue && normalizedSignature && verifySignedString(normalizedValue, normalizedSignature));
+    } catch (_error) {
+      event.returnValue = false;
     }
   });
 }
